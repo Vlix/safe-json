@@ -1,53 +1,58 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.1.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 23ea0fb4df11ccb8fb5aa8e8f0f1e8b3e7dfe1ad9370b00ae1af17448ed4f327
+-- hash: 90647530383987e4964d50d3640ecff32d34b2078c338f2ce6dceaba995fffd7
 
-name:           test2
+name:           safe-json
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/test2#readme>
-homepage:       https://github.com/githubuser/test2#readme
-bug-reports:    https://github.com/githubuser/test2/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2018 Author name here
-license:        BSD3
+description:    Please see README at <https://github.com/Vlix/safe-json#readme>
+category:       Development
+homepage:       https://github.com/Vlix/safe-json#readme
+bug-reports:    https://github.com/Vlix/safe-json/issues
+author:         Felix Paulusma
+maintainer:     felix.paulusma@gmail.com
+copyright:      2019 Felix Paulusma
+license:        MIT
 license-file:   LICENSE
 build-type:     Simple
-cabal-version:  >= 1.10
-
 extra-source-files:
-    ChangeLog.md
     README.md
+    ChangeLog.md
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/test2
+  location: https://github.com/Vlix/safe-json
 
 library
+  exposed-modules:
+      Data.SafeJSON
+  other-modules:
+      Data.SafeJSON.Internal
+      Paths_safe_json
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
-    , aeson
+      aeson
+    , base >=4.7 && <5
     , text
     , unordered-containers
-  exposed-modules:
-      Lib
-  other-modules:
-      Paths_test2
   default-language: Haskell2010
 
-test-suite test2-test
+test-suite safe-json-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
+  other-modules:
+      Paths_safe_json
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
-    , test2
-  other-modules:
-      Paths_test2
+      aeson
+    , base >=4.7 && <5
+    , safe-json
+    , text
+    , unordered-containers
   default-language: Haskell2010

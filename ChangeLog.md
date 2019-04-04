@@ -1,3 +1,3 @@
-# Changelog for test2
+# Changelog for safe-json
 
 ## Unreleased changes

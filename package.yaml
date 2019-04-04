@@ -5,7 +5,7 @@ license:             MIT
 author:              "Felix Paulusma"
 maintainer:          "felix.paulusma@gmail.com"
 copyright:           "2019 Felix Paulusma"
-category:
+category:            "Development"
 
 extra-source-files:
 - README.md
@@ -22,10 +22,14 @@ description:         Please see README at <https://github.com/Vlix/safe-json#rea
 
 dependencies:
 - base >= 4.7 && < 5
+- aeson
+- text
+- unordered-containers
 
 library:
   source-dirs: src
-  exposed-modules: []
+  exposed-modules:
+    - Data.SafeJSON
 
 tests:
   safe-json-test:

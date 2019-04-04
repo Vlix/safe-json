@@ -5,12 +5,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
-module Lib
-    ( SafeJSON(..)
-    , Migrate(..)
-    , Version
-    ,
-    ) where
+-- {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+module Data.SafeJSON.Internal where
 
 
 import Data.Aeson
@@ -76,6 +72,9 @@ isPrimitive _         = False
 versionTag :: Text
 versionTag = "_v"
 
+dataVersionTag :: Text
+dataVersionTag = "__v"
+
 dataTag :: Text
 dataTag = "_data"
 
@@ -93,8 +92,10 @@ safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case kindFromProxy p of
     Primitive -> unsafeUnpack $ safeTo a
     _         -> case unsafeUnpack $ safeTo a of
-        Object o -> Object $ HM.insert "_v" (toJSON i) o
-        other    -> object ["__v" .= i, "_data" .= other]
+        Object o -> Object $ HM.insert versionTag (toJSON i) o
+        other    -> object [ dataVersionTag .= i
+                           , dataTag        .= other
+                           ]
   where Version i = version :: Version a
         p = Proxy :: Proxy a
 
@@ -115,7 +116,7 @@ safeFromJSON origVal = checkConsistency p $
   where p = Proxy :: Proxy a
         safejsonErr s = fail $ "safejson: " ++ s
         firstTry o = do
-            mVersion <- o .:? "_v"
+            mVersion <- o .:? versionTag
             case mVersion of
               Nothing -> tryOther o
               Just v -> withVersion (Version v) origVal
@@ -126,11 +127,11 @@ safeFromJSON origVal = checkConsistency p $
                     , show v, "): ", e
                     ]
         tryOther o = do
-            mVersion <- o .:? "__v"
+            mVersion <- o .:? dataVersionTag
             case mVersion of
               Nothing -> safejsonErr "no version found"
               Just v -> do
-                  mBody <- o .:? "_data"
+                  mBody <- o .:? dataTag
                   let bodyErr = safejsonErr $
                         "no body found for JSON non-object (version " ++ show v ++ ")"
                   maybe bodyErr (withVersion $ Version v) mBody
@@ -142,7 +143,8 @@ constructParserFromVersion val origVersion origKind = worker origVersion origKin
     worker thisVersion thisKind
       | version == thisVersion = return $ unsafeUnpack $ safeFrom val
       | otherwise = case thisKind of
-          Base -> Left $ errorMsg thisKind versionNotFound
+          Primitive -> Left $ errorMsg thisKind "Cannot migrate from primitive types."
+          Base      -> Left $ errorMsg thisKind versionNotFound
           Extends p -> fmap migrate <$> worker (castVersion origVersion) (kindFromProxy p)
 
     versionNotFound = "Cannot find parser associated with: " <> show origVersion
