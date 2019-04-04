@@ -1,3 +1,7 @@
+-- This module heavily relies on code borrowed from the "safecopy"
+-- library by David Himmelstrup and Felipe Lessa, found on
+-- "https://github.com/acid-state/safecopy"
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -9,6 +13,7 @@
 module Data.SafeJSON.Internal where
 
 
+import Control.Monad.Fail (MonadFail)
 import Data.Aeson
 import Data.Aeson.Types (Parser)
 import Data.HashMap.Strict as HM (insert)
@@ -16,6 +21,7 @@ import Data.Int
 import Data.List (nub)
 import Data.Proxy
 import Data.Text (Text)
+import Data.Typeable (Typeable, typeRep)
 
 
 newtype Contained a = Contained {unsafeUnpack :: a}
@@ -23,31 +29,69 @@ newtype Contained a = Contained {unsafeUnpack :: a}
 contain :: a -> Contained a
 contain = Contained
 
--- TODO: Might be a good idea to take the 'Contained' approach that
--- SafeCopy also uses, so no one can use 'safeTo' and 'safeFrom' directly.
+-- TODO: Explain how version 0 works.
+-- (version 0 can also be used to avoid clashes with
+-- the "_v" or "__v" fields)
+-- Making SafeJSON instances for non-Object 'Value's
+-- creates additional overhead (since they get turned into objects)
+-- so it is advised to try to make SafeJSON instances only for
+-- top-level types that contain other types.
+-- While the minimal definition doesn't need any declarations,
+-- it is advised to at least set the 'version' and 'kind'.
+-- (and the errorTypeName if your type is not Typeable)
 class (ToJSON a, FromJSON a) => SafeJSON a where
-
+  -- | The version of the type.
+  --
+  --   Only used as a key so it must be unique, (this is checked at run-time)
+  --   but doesn't have to be sequential or continuous.
+  --
+  --   The default version is '1'. (N.B. version '0' is handled uniquely)
   version :: Version a
   version = 1
 
+  -- | The kind specifies how versions are dealt with. By default,
+  --   values are tagged with their version id and don't have any
+  --   previous versions. See 'extension' and the much less used
+  --   'primitive'.
   kind :: Kind a
   kind = Base
 
+  -- | This method defines how a value should be serialized without worrying about
+  --   previous versions or migrations. This function cannot be used directly.
+  --   One should use 'safeGet', instead.
   safeTo :: a -> Contained Value
   safeTo = contain . toJSON
 
+  -- | This method defines how a value should be parsed without also worrying
+  --   about writing out the version tag. This function cannot be used directly.
+  --   One should use 'safeFromJSON', instead.
   safeFrom :: Value -> Contained (Parser a)
   safeFrom = contain . parseJSON
 
   errorTypeName :: Proxy a -> String
-  errorTypeName _ = "<unknown type>"
+  default errorTypeName :: Typeable a => Proxy a -> String
+  errorTypeName = showType
 
+  -- | Internal function that should not be overrided.
+  --   @Consistent@ if the version history is consistent
+  --   (i.e. there are no duplicate version numbers) and
+  --   the chain of migrations is valid.
+  --
+  --   This function is in the typeclass so that this
+  --   information is calculated only once during the program
+  --   lifetime, instead of everytime 'safeFrom' or 'safeTo' is used.
   internalConsistency :: Consistency a
   internalConsistency = computeConsistency Proxy
 
+  -- | Version profile.
+  --
+  --   Useful when running tests.
+  --   Shows the current version of the type and all supported
+  --   versions it can migrate from.
   objectProfile :: Profile a
   objectProfile = mkProfile Proxy
 
+  {-# MINIMAL #-}
 
 class SafeJSON (MigrateFrom a) => Migrate a where
   type MigrateFrom a
@@ -87,7 +131,7 @@ base = Base
 extension :: (SafeJSON a, Migrate a) => Kind a
 extension = Extends Proxy
 
--- | We don't check consistency here, since we're only adding a version number.
+-- We don't check consistency here, since we're only adding a version number.
 safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case kindFromProxy p of
     Primitive -> unsafeUnpack $ safeTo a
@@ -169,6 +213,8 @@ versionFromProxy _ = version
 versionFromKind :: SafeJSON a => Kind a -> Version a
 versionFromKind _ = version
 
+showType :: Typeable a => Proxy a -> String
+showType = show . typeRep
 
 data Profile a = PrimitiveProfile
                | InvalidProfile String
@@ -176,8 +222,19 @@ data Profile a = PrimitiveProfile
 
 data ProfileVersions = ProfileVersions {
     profileCurrentVersion :: Int64,
-    profileSupportedVersions :: [Int64]
+    profileSupportedVersions :: [(Int64, String)]
   }
+
+instance Typeable a => Show (Profile a) where
+  show PrimitiveProfile   = "PrimitiveProfile"
+  show (InvalidProfile s) = "InvalidProfile: " <> s
+  show (Profile (ProfileVersions cur sup)) =
+      let p = Proxy :: Proxy a
+      in mconcat [ "Profile for \"", showType p
+                 , "\" (version ", show cur, "): "
+                 , show sup
+                 ]
+
 
 mkProfile :: SafeJSON a => Proxy a -> Profile a
 mkProfile p = case computeConsistency p of
@@ -192,7 +249,7 @@ mkProfile p = case computeConsistency p of
 data Consistency a = Consistent
                    | NotConsistent String
 
-checkConsistency :: (SafeJSON a, Monad m) => Proxy a -> m b -> m b
+checkConsistency :: (SafeJSON a, MonadFail m) => Proxy a -> m b -> m b
 checkConsistency p m =
     case computeConsistency p of
       NotConsistent s -> fail s
@@ -211,15 +268,17 @@ isObviouslyConsistent Primitive = True
 isObviouslyConsistent Base      = True
 isObviouslyConsistent _         = False
 
-availableVersions :: SafeJSON a => Proxy a -> [Int64]
+availableVersions :: SafeJSON a => Proxy a -> [(Int64, String)]
 availableVersions p = worker (kindFromProxy p)
   where
-    worker :: SafeJSON b => Kind b -> [Int64]
+    worker :: SafeJSON b => Kind b -> [(Int64, String)]
     worker k = case k of
         Primitive  -> []
-        Base       -> [v]
-        Extends p' -> v : worker (kindFromProxy p')
+        Base       -> [tup]
+        Extends p' -> tup : worker (kindFromProxy p')
       where Version v = versionFromKind k
+            name = errorTypeName $ proxyFromKind k
+            tup = (v, name)
 
 validChain :: SafeJSON a => Proxy a -> Bool
 validChain origProxy = case kindFromProxy origProxy of

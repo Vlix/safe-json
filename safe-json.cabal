@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 90647530383987e4964d50d3640ecff32d34b2078c338f2ce6dceaba995fffd7
+-- hash: 4edf860a441a70b6ea4d5197c0a29ef9ffa6daf95a4ee6c87156714590f1c5c9
 
 name:           safe-json
 version:        0.1.0.0
@@ -30,6 +30,7 @@ library
   exposed-modules:
       Data.SafeJSON
   other-modules:
+      Data.SafeJSON.Instances
       Data.SafeJSON.Internal
       Paths_safe_json
   hs-source-dirs:

@@ -1,6 +1,6 @@
 module Data.SafeJSON
     ( -- * SafeJSON Instance
-      SafeJSON(..)
+      SafeJSON(version, kind, safeTo, safeFrom, objectProfile, errorTypeName)
     , contain
     , safeToJSON
     , safeFromJSON
@@ -9,8 +9,16 @@ module Data.SafeJSON
     , primitive
     , base
     , extension
+    -- * Testing
+    , Profile(..)
+    , ProfileVersions(..)
+    -- * Migration
     , Migrate(..)
     ) where
 
 
+import Data.Aeson
+import Data.Proxy
 import Data.SafeJSON.Internal
+import Data.SafeJSON.Instances()
+import Data.Typeable
