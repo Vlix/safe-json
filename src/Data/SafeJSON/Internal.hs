@@ -70,7 +70,7 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
 
   errorTypeName :: Proxy a -> String
   default errorTypeName :: Typeable a => Proxy a -> String
-  errorTypeName = showType
+  errorTypeName = typeName
 
   -- | Internal function that should not be overrided.
   --   @Consistent@ if the version history is consistent
@@ -134,13 +134,16 @@ extension = Extends Proxy
 -- We don't check consistency here, since we're only adding a version number.
 safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case kindFromProxy p of
-    Primitive -> unsafeUnpack $ safeTo a
-    _         -> case unsafeUnpack $ safeTo a of
-        Object o -> Object $ HM.insert versionTag (toJSON i) o
-        other    -> object [ dataVersionTag .= i
-                           , dataTag        .= other
-                           ]
-  where Version i = version :: Version a
+    Primitive     -> tojson
+    Base | i == 0 -> tojson
+    _ -> case tojson of
+            Object o -> Object $ HM.insert versionTag (toJSON i) o
+            other    -> object
+                [ dataVersionTag .= i
+                , dataTag        .= other
+                ]
+  where tojson = unsafeUnpack $ safeTo a
+        Version i = version :: Version a
         p = Proxy :: Proxy a
 
 -- TODO: Add fallback for version 0 in case no version is found.
@@ -152,12 +155,13 @@ safeToJSON a = case kindFromProxy p of
 safeFromJSON :: forall a. SafeJSON a => Value -> Parser a
 safeFromJSON origVal = checkConsistency p $
     case kindFromProxy p of
-      Primitive -> unsafeUnpack $ safeFrom origVal
-      _         -> case origVal of
-                      Object o -> firstTry o
-                      _ -> safejsonErr $ "unparsable JSON value (not an object): "
-                                      ++ errorTypeName p
-  where p = Proxy :: Proxy a
+      Primitive     -> unsafeUnpack $ safeFrom origVal
+      Base | i == 0 -> unsafeUnpack $ safeFrom origVal
+      _ -> case origVal of
+              Object o -> firstTry o
+              _ -> safejsonErr $ "unparsable JSON value (not an object): " ++ errorTypeName p
+  where Version i = version :: Version a
+        p = Proxy :: Proxy a
         safejsonErr s = fail $ "safejson: " ++ s
         firstTry o = do
             mVersion <- o .:? versionTag
@@ -167,9 +171,7 @@ safeFromJSON origVal = checkConsistency p $
         withVersion v val = either parseErr id eResult
           where eResult = constructParserFromVersion val v $ kindFromVersion v
                 parseErr e = safejsonErr $ mconcat
-                    [ "couldn't parse with found version ("
-                    , show v, "): ", e
-                    ]
+                    ["couldn't parse with found version (", show v, "): ", e]
         tryOther o = do
             mVersion <- o .:? dataVersionTag
             case mVersion of
@@ -213,8 +215,24 @@ versionFromProxy _ = version
 versionFromKind :: SafeJSON a => Kind a -> Version a
 versionFromKind _ = version
 
-showType :: Typeable a => Proxy a -> String
-showType = show . typeRep
+typeName :: Typeable a => Proxy a -> String
+typeName = show . typeRep
+
+typeName1 :: forall t a. Typeable t => Proxy (t a) -> String
+typeName1 _ = show $ typeRep (Proxy :: Proxy t)
+
+typeName2 :: forall t a b. Typeable t => Proxy (t a b) -> String
+typeName2 _ = show $ typeRep (Proxy :: Proxy t)
+
+typeName3 :: forall t a b c. Typeable t => Proxy (t a b c) -> String
+typeName3 _ = show $ typeRep (Proxy :: Proxy t)
+
+typeName4 :: forall t a b c d. Typeable t => Proxy (t a b c d) -> String
+typeName4 _ = show $ typeRep (Proxy :: Proxy t)
+
+typeName5 :: forall t a b c d e. Typeable t => Proxy (t a b c d e) -> String
+typeName5 _ = show $ typeRep (Proxy :: Proxy t)
+
 
 data Profile a = PrimitiveProfile
                | InvalidProfile String
@@ -230,7 +248,7 @@ instance Typeable a => Show (Profile a) where
   show (InvalidProfile s) = "InvalidProfile: " <> s
   show (Profile (ProfileVersions cur sup)) =
       let p = Proxy :: Proxy a
-      in mconcat [ "Profile for \"", showType p
+      in mconcat [ "Profile for \"", typeName p
                  , "\" (version ", show cur, "): "
                  , show sup
                  ]

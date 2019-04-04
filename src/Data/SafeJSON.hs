@@ -9,6 +9,17 @@ module Data.SafeJSON
     , primitive
     , base
     , extension
+    -- ** Showing the type
+    --
+    -- These helper functions can easily be used in the
+    -- definition of 'errorTypeName'. As long as the type
+    -- being defined has a 'Typeable' instance.
+    , typeName
+    , typeName1
+    , typeName2
+    , typeName3
+    , typeName4
+    , typeName5
     -- * Testing
     , Profile(..)
     , ProfileVersions(..)
@@ -17,8 +28,5 @@ module Data.SafeJSON
     ) where
 
 
-import Data.Aeson
-import Data.Proxy
 import Data.SafeJSON.Internal
 import Data.SafeJSON.Instances()
-import Data.Typeable
