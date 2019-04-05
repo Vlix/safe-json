@@ -3,6 +3,7 @@
 -- "https://github.com/acid-state/safecopy"
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -13,14 +14,19 @@
 module Data.SafeJSON.Internal where
 
 
+import Control.Applicative ((<|>))
+import Control.Monad (when)
 import Control.Monad.Fail (MonadFail)
 import Data.Aeson
 import Data.Aeson.Types (Parser)
-import Data.HashMap.Strict as HM (insert)
+import Data.HashMap.Strict as HM (insert, toList)
 import Data.Int
-import Data.List (nub)
+import qualified Data.List as List (intercalate)
+import Data.Maybe (fromMaybe)
 import Data.Proxy
-import Data.Text (Text)
+import qualified Data.Set as S
+import Data.String (IsString(..))
+import Data.Text (Text, pack)
 import Data.Typeable (Typeable, typeRep)
 
 
@@ -29,36 +35,39 @@ newtype Contained a = Contained {unsafeUnpack :: a}
 contain :: a -> Contained a
 contain = Contained
 
--- TODO: Explain how version 0 works.
--- (version 0 can also be used to avoid clashes with
+-- TODO: Explain how Version Nothing works.
+-- (Version Nothing can also be used to avoid clashes with
 -- the "_v" or "__v" fields)
+
 -- Making SafeJSON instances for non-Object 'Value's
 -- creates additional overhead (since they get turned into objects)
 -- so it is advised to try to make SafeJSON instances only for
 -- top-level types that contain other types.
+
 -- While the minimal definition doesn't need any declarations,
 -- it is advised to at least set the 'version' and 'kind'.
--- (and the errorTypeName if your type is not Typeable)
+-- (and the typeName if your type is not Typeable)
+
+-- SafeJSON will look forward once, but after that go down the chain.
 class (ToJSON a, FromJSON a) => SafeJSON a where
   -- | The version of the type.
   --
   --   Only used as a key so it must be unique, (this is checked at run-time)
   --   but doesn't have to be sequential or continuous.
   --
-  --   The default version is '1'. (N.B. version '0' is handled uniquely)
+  --   The default version is '0'.
   version :: Version a
-  version = 1
+  version = 0
 
   -- | The kind specifies how versions are dealt with. By default,
-  --   values are tagged with their version id and don't have any
-  --   previous versions. See 'extension' and the much less used
-  --   'primitive'.
+  --   values are tagged with version 0 and don't have any
+  --   previous versions. See 'extension'.
   kind :: Kind a
   kind = Base
 
-  -- | This method defines how a value should be serialized without worrying about
-  --   previous versions or migrations. This function cannot be used directly.
-  --   One should use 'safeGet', instead.
+  -- | This method defines how a value should be serialized without worrying
+  --   about adding the version. This function cannot be used directly.
+  --   One should use 'safeToJSON', instead.
   safeTo :: a -> Contained Value
   safeTo = contain . toJSON
 
@@ -68,9 +77,12 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
   safeFrom :: Value -> Contained (Parser a)
   safeFrom = contain . parseJSON
 
-  errorTypeName :: Proxy a -> String
-  default errorTypeName :: Typeable a => Proxy a -> String
-  errorTypeName = typeName
+  -- | The name of the type. This is only used in error
+  --   message strings.
+  --   Feel free to leave undefined in your instances.
+  typeName :: Proxy a -> String
+  default typeName :: Typeable a => Proxy a -> String
+  typeName = typeName0
 
   -- | Internal function that should not be overrided.
   --   @Consistent@ if the version history is consistent
@@ -93,37 +105,90 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
 
   {-# MINIMAL #-}
 
+-- | This instance is needed to handle older versions.
+--
+--   /N.B. Where @Migrate a@ migrates from the previous
+--   version to the type @a@, @Migrate (Reverse a)@ can
+--   be read as @MigrateTo a@ because it is the inverse
+--   of what @MigrateFrom@ does. (i.e. migrate from the
+--   next version back to type @a@. This is useful when
+--   needing in-place updating of message formats, for
+--   example)/
 class SafeJSON (MigrateFrom a) => Migrate a where
   type MigrateFrom a
   migrate :: MigrateFrom a -> a
 
-newtype Version a = Version {unVersion :: Int64}
-  deriving (Eq, Show, Num)
+-- | A simple numeric version id.
+--
+--   'Version' has a 'Num' instance and as such can be
+--   declared using integer literals: @version = 2@
+newtype Version a = Version {unVersion :: Maybe Int64}
+  deriving (Eq)
+
+-- | 'noVersion' is used for types that don't have
+--   a version tag. This is used for primitive values, like
+--   'Int', 'Text', '[a]', etc.
+--   But also when implementing 'SafeJSON' after the fact.
+noVersion :: Version a
+noVersion = Version Nothing
+
+instance Show (Version a) where
+  show (Version mi) = "Version " ++ showV mi
+
+liftV :: (Int64 -> Int64 -> Int64) -> Maybe Int64 -> Maybe Int64 -> Maybe Int64
+liftV _ Nothing Nothing = Nothing
+liftV f ma mb = Just $ toZ ma `f` toZ mb
+
+-- | Nothing is handled as if it's zero.
+instance Num (Version a) where
+  Version ma + Version mb = Version $ liftV (+) ma mb
+  Version ma - Version mb = Version $ liftV (-) ma mb
+  Version ma * Version mb = Version $ liftV (*) ma mb
+  negate (Version ma) = Version $ negate <$> ma
+  abs    (Version ma) = Version $ abs    <$> ma
+  signum (Version ma) = Version $ signum <$> ma
+  fromInteger i = Version $ Just $ fromInteger i
+
+toZ :: Num i => Maybe i -> i
+toZ = fromMaybe $ fromInteger 0
 
 castVersion :: Version a -> Version b
 castVersion (Version i) = Version i
 
+-- | This is the key for the field used for the version number
+--   in the JSON object for the type of 'a'
+newtype VersionField a = VersionField {unVersionField :: Text}
+  deriving (Eq)
+
+instance Show (VersionField a) where
+  show (VersionField t) = "VersionField " ++ show t
+
+instance IsString (VersionField a) where
+  fromString s = VersionField $ pack s
+
+-- | This is a wrapper type used migrating backwards in the chain of compatible types.
+--
+--   This is useful when running updates in production where new-format JSON will be
+--   received by old-format expecting services.
+newtype Reverse a = Reverse { unReverse :: a }
+
+-- | The kind of a data type determines how it is tagged (if at all).
+--
+--   Base kinds (see 'base') are not tagged with a version
+--   id and cannot be extended later.
+--
+--   Extensions (see 'extension') tells the system that there exists
+--   a previous version of the data type which should be migrated if
+--   needed. (This requires the data type to also have a 'Migrate a' instance)
+--
+--   Forward extensions (see 'extended_base' and 'extended_extension')
+--   tell the system there exists at least a next version from which
+--   the data type can be reverse-migrated.
+--   (This requires the data type to also have a 'Migrate (Reverse a)' instance)
 data Kind a where
-  Primitive :: Kind a
   Base :: Kind a
   Extends :: Migrate a => Proxy (MigrateFrom a) -> Kind a
-
-
-isPrimitive :: Kind a -> Bool
-isPrimitive Primitive = True
-isPrimitive _         = False
-
-versionTag :: Text
-versionTag = "_v"
-
-dataVersionTag :: Text
-dataVersionTag = "__v"
-
-dataTag :: Text
-dataTag = "_data"
-
-primitive :: Kind a
-primitive = Primitive
+  Extended :: Migrate (Reverse a) => Kind a -> Kind a
 
 base :: Kind a
 base = Base
@@ -131,74 +196,97 @@ base = Base
 extension :: (SafeJSON a, Migrate a) => Kind a
 extension = Extends Proxy
 
+extended_extension :: (SafeJSON a, Migrate a, Migrate (Reverse a)) => Kind a
+extended_extension = Extended extension
+
+extended_base :: (SafeJSON a, Migrate (Reverse a)) => Kind a
+extended_base = Extended base
+
+-- The '!' and '~' used in these set fields are chosen for their
+-- low probability of showing up naturally in JSON objects one
+-- would normally find or construct.
+
+versionField :: Text
+versionField = "!v"
+
+dataVersionField :: Text
+dataVersionField = "~v"
+
+dataField :: Text
+dataField = "~d"
+
 -- We don't check consistency here, since we're only adding a version number.
 safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case kindFromProxy p of
-    Primitive     -> tojson
-    Base | i == 0 -> tojson
+    Base | i == Nothing -> tojson
     _ -> case tojson of
-            Object o -> Object $ HM.insert versionTag (toJSON i) o
+            Object o -> Object $ HM.insert versionField (toJSON i) o
             other    -> object
-                [ dataVersionTag .= i
-                , dataTag        .= other
+                [ dataVersionField .= i
+                , dataField .= other
                 ]
   where tojson = unsafeUnpack $ safeTo a
         Version i = version :: Version a
         p = Proxy :: Proxy a
 
--- TODO: Add fallback for version 0 in case no version is found.
--- This will be helpful in situations where this library is added later on.
--- (This is also the reason the default version in the 'SafeJSON' class is 1)
--- | Even though the consistency is checked, this shouldn't actually fail
--- because of consistency if you have a test-suite that checks the
--- consistency of all the types that have a SafeJSON instance.
+-- | The consistency is not checked before every parsing.
+--   This will either always run or always fail depending on
+--   the consistency of the 'SafeJSON' instance in question,
+--   since checkConsistency is
 safeFromJSON :: forall a. SafeJSON a => Value -> Parser a
 safeFromJSON origVal = checkConsistency p $
     case kindFromProxy p of
-      Primitive     -> unsafeUnpack $ safeFrom origVal
-      Base | i == 0 -> unsafeUnpack $ safeFrom origVal
+      Base          | i == Nothing -> unsafeUnpack $ safeFrom origVal
+      Extended Base | i == Nothing -> unsafeUnpack $ safeFrom origVal
       _ -> case origVal of
-              Object o -> firstTry o
-              _ -> safejsonErr $ "unparsable JSON value (not an object): " ++ errorTypeName p
+              Object o -> firstTry o <|> secondTry o <|> withoutVersion
+              _ -> safejsonErr $ "unparsable JSON value (not an object): " ++ typeName p
   where Version i = version :: Version a
         p = Proxy :: Proxy a
         safejsonErr s = fail $ "safejson: " ++ s
-        firstTry o = do
-            mVersion <- o .:? versionTag
-            case mVersion of
-              Nothing -> tryOther o
-              Just v -> withVersion (Version v) origVal
         withVersion v val = either parseErr id eResult
           where eResult = constructParserFromVersion val v $ kindFromVersion v
                 parseErr e = safejsonErr $ mconcat
                     ["couldn't parse with found version (", show v, "): ", e]
-        tryOther o = do
-            mVersion <- o .:? dataVersionTag
-            case mVersion of
-              Nothing -> safejsonErr "no version found"
-              Just v -> do
-                  mBody <- o .:? dataTag
-                  let bodyErr = safejsonErr $
-                        "no body found for JSON non-object (version " ++ show v ++ ")"
-                  maybe bodyErr (withVersion $ Version v) mBody
+        withoutVersion = withVersion noVersion origVal
+        firstTry o = do
+            v <- o .: versionField
+            withVersion (Version $ Just v) origVal
+        secondTry o = do
+            v  <- o .: dataVersionField
+            bd <- o .: dataField
+            -- This is an extra counter measure against false parsing.
+            -- The simple data object should contain exactly the
+            -- (v'') and (d') fields
+            when (length (HM.toList o) /= 2) $ fail "not simple data"
+            withVersion (Version $ Just v) bd
 
+-- This takes the version number found (or Nothing) and tries find the type in
+-- the chain that has that version number. It will attempt to go one type up
+-- (try 'Migrate (Reverse a)' once) and after that down the chain.
 constructParserFromVersion :: SafeJSON a => Value -> Version a -> Kind a -> Either String (Parser a)
-constructParserFromVersion val origVersion origKind = worker origVersion origKind
+constructParserFromVersion val origVersion origKind =
+    worker False origVersion origKind
   where
-    worker :: SafeJSON b => Version b -> Kind b -> Either String (Parser b)
-    worker thisVersion thisKind
+    worker :: forall a. SafeJSON a => Bool -> Version a -> Kind a -> Either String (Parser a)
+    worker fwd thisVersion thisKind
       | version == thisVersion = return $ unsafeUnpack $ safeFrom val
       | otherwise = case thisKind of
-          Primitive -> Left $ errorMsg thisKind "Cannot migrate from primitive types."
-          Base      -> Left $ errorMsg thisKind versionNotFound
-          Extends p -> fmap migrate <$> worker (castVersion origVersion) (kindFromProxy p)
-
-    versionNotFound = "Cannot find parser associated with: " <> show origVersion
-    errorMsg k msg = mconcat
-        [ "safejson: "
-        , errorTypeName (proxyFromKind k)
-        , ": ", msg
-        ]
+          Base          -> Left errorMsg
+          Extended Base -> Left errorMsg
+          Extends p     -> fmap migrate <$> worker fwd (castVersion thisVersion) (kindFromProxy p)
+          Extended k    -> do
+              let forwardParser :: Either String (Parser a)
+                  forwardParser = fmap (unReverse . migrate) <$> worker True (castVersion thisVersion) (kindFromProxy reverseProxy)
+                  previousParser :: Either String (Parser a)
+                  previousParser = worker True thisVersion k
+              if fwd || thisVersion == noVersion
+                then previousParser
+                else either (const previousParser) Right forwardParser
+      where versionNotFound = "Cannot find parser associated with: " <> show origVersion
+            errorMsg = mconcat ["safejson: ", typeName (proxyFromKind thisKind), ": ", versionNotFound]
+            reverseProxy :: Proxy (MigrateFrom (Reverse a))
+            reverseProxy = Proxy
 
 proxyFromKind :: Kind a -> Proxy a
 proxyFromKind _ = Proxy
@@ -215,96 +303,188 @@ versionFromProxy _ = version
 versionFromKind :: SafeJSON a => Kind a -> Version a
 versionFromKind _ = version
 
-typeName :: Typeable a => Proxy a -> String
-typeName = show . typeRep
+-- | Type name string representation of a nullary type constructor.
+typeName0 :: Typeable a => Proxy a -> String
+typeName0 = show . typeRep
 
+-- | Type name string representation of a unary type constructor.
 typeName1 :: forall t a. Typeable t => Proxy (t a) -> String
 typeName1 _ = show $ typeRep (Proxy :: Proxy t)
 
+-- | Type name string representation of a binary type constructor.
 typeName2 :: forall t a b. Typeable t => Proxy (t a b) -> String
 typeName2 _ = show $ typeRep (Proxy :: Proxy t)
 
+-- | Type name string representation of a ternary type constructor.
 typeName3 :: forall t a b c. Typeable t => Proxy (t a b c) -> String
 typeName3 _ = show $ typeRep (Proxy :: Proxy t)
 
+-- | Type name string representation of a 4-ary type constructor.
 typeName4 :: forall t a b c d. Typeable t => Proxy (t a b c d) -> String
 typeName4 _ = show $ typeRep (Proxy :: Proxy t)
 
+-- | Type name string representation of a 5-ary type constructor.
 typeName5 :: forall t a b c d e. Typeable t => Proxy (t a b c d e) -> String
 typeName5 _ = show $ typeRep (Proxy :: Proxy t)
 
 
-data Profile a = PrimitiveProfile
-               | InvalidProfile String
-               | Profile ProfileVersions
+-- | Profile of the internal consistency of a 'SafeJSON' instance.
+--
+--   /N.B. 'noVersion' shows as 'null' instead of a number./
+data Profile a = InvalidProfile String -- ^ There is something wrong with versioning
+               | Profile ProfileVersions -- ^ Profile of consistent versions
+  deriving (Eq)
 
+-- | Version profile of a consistent 'SafeJSON' instance.
+--
+-- | 'Version Nothing' shows as 'null'
 data ProfileVersions = ProfileVersions {
-    profileCurrentVersion :: Int64,
-    profileSupportedVersions :: [(Int64, String)]
-  }
+    profileCurrentVersion :: Maybe Int64,
+    profileSupportedVersions :: [(Maybe Int64, String)]
+  } deriving (Eq)
+
+showV :: Maybe Int64 -> String
+showV Nothing  = "null"
+showV (Just i) = show i
+
+showVs :: [(Maybe Int64, String)] -> String
+showVs = List.intercalate ", " . fmap go
+  where go (mi, s) = mconcat ["(", showV mi, ", ", s, ")"]
+
+-- | 'Version Nothing' is shows as 'null'
+instance Show ProfileVersions where
+  show (ProfileVersions cur sup) = mconcat
+      [ "version ", showV cur, ": ["
+      , showVs sup, "]"
+      ]
 
 instance Typeable a => Show (Profile a) where
-  show PrimitiveProfile   = "PrimitiveProfile"
   show (InvalidProfile s) = "InvalidProfile: " <> s
-  show (Profile (ProfileVersions cur sup)) =
+  show (Profile pv) =
       let p = Proxy :: Proxy a
-      in mconcat [ "Profile for \"", typeName p
-                 , "\" (version ", show cur, "): "
-                 , show sup
+      in mconcat [ "Profile for \"", typeName0 p
+                 , "\" (", show pv, ")"
                  ]
 
-
+-- | Easy way to get a printable failure/success report
+-- of the internal consistency of a SafeJSON instance.
 mkProfile :: SafeJSON a => Proxy a -> Profile a
 mkProfile p = case computeConsistency p of
     NotConsistent t -> InvalidProfile t
-    Consistent | isPrimitive (kindFromProxy p) -> PrimitiveProfile
     Consistent -> Profile $ ProfileVersions {
         profileCurrentVersion    = unVersion (versionFromProxy p),
         profileSupportedVersions = availableVersions p
       }
-
 
 data Consistency a = Consistent
                    | NotConsistent String
 
 checkConsistency :: (SafeJSON a, MonadFail m) => Proxy a -> m b -> m b
 checkConsistency p m =
-    case computeConsistency p of
+    case consistentFromProxy p of
       NotConsistent s -> fail s
       Consistent      -> m
 
+consistentFromProxy :: SafeJSON a => Proxy a -> Consistency a
+consistentFromProxy _ = internalConsistency
+
+{-# INLINE computeConsistency #-}
 computeConsistency :: SafeJSON a => Proxy a -> Consistency a
 computeConsistency p
+-- This checks the chain of versions to not clash or loop,
+-- and it verifies only 'Base' or 'Extended Base' kinds can
+-- have 'noVersion'
   | isObviouslyConsistent (kindFromProxy p) = Consistent
-  | versions /= nub versions = NotConsistent $ "Duplicate version tags in chain: " ++ show versions
-  | not (validChain p) = NotConsistent $ "Primitive types cannot be extended as they have no version tag."
+  | Just s <- invalidChain p = NotConsistent s
   | otherwise = Consistent
-  where versions = availableVersions p
 
 isObviouslyConsistent :: Kind a -> Bool
-isObviouslyConsistent Primitive = True
-isObviouslyConsistent Base      = True
-isObviouslyConsistent _         = False
+isObviouslyConsistent Base = True
+isObviouslyConsistent _    = False
 
-availableVersions :: SafeJSON a => Proxy a -> [(Int64, String)]
-availableVersions p = worker (kindFromProxy p)
+availableVersions :: SafeJSON a => Proxy a -> [(Maybe Int64, String)]
+availableVersions p =
+    worker False (kindFromProxy p)
   where
-    worker :: SafeJSON b => Kind b -> [(Int64, String)]
-    worker k = case k of
-        Primitive  -> []
+    worker :: SafeJSON b => Bool -> Kind b -> [(Maybe Int64, String)]
+    worker fwd thisKind = case thisKind of
         Base       -> [tup]
-        Extends p' -> tup : worker (kindFromProxy p')
-      where Version v = versionFromKind k
-            name = errorTypeName $ proxyFromKind k
+        Extends p' -> tup : worker fwd (kindFromProxy p')
+        Extended k | not fwd -> worker True (getForwardKind k)
+        Extended k -> worker True k
+
+      where Version v = versionFromKind thisKind
+            name = typeName $ proxyFromKind thisKind
             tup = (v, name)
 
-validChain :: SafeJSON a => Proxy a -> Bool
-validChain origProxy = case kindFromProxy origProxy of
-    Extends p -> check (kindFromProxy p)
-    _         -> True
+getForwardKind :: Migrate (Reverse a) => Kind a -> Kind (MigrateFrom (Reverse a))
+getForwardKind _ = kind
+
+invalidChain :: SafeJSON a => Proxy a -> Maybe String
+invalidChain a_proxy =
+  worker mempty mempty (kindFromProxy a_proxy)
   where
-    check :: SafeJSON b => Kind b -> Bool
-    check = \case
-        Primitive -> False
-        Base      -> True
-        Extends p -> check (kindFromProxy p)
+    --                                Version set            Version set with type name     Kind      Maybe error
+    worker :: forall a. SafeJSON a => S.Set (Maybe Int64) -> S.Set (Maybe Int64, String) -> Kind a -> Maybe String
+    worker vs vSs k
+      | i `S.member` vs = Just $ mconcat
+          [ "Double occurence of version number '", showV i
+          , "' (type: ", typeName p
+          , "). Looping instances if the previous combination of type and version number are found here: "
+          , showVs $ S.toList vSs
+          ]
+      | otherwise = case k of
+          Base -> Nothing
+          Extends{} | i == Nothing -> Just $ mconcat
+              [ typeName p, " has defined 'version = noVersion', "
+              , " but it's 'kind' definition is not 'base' or 'extended_base'"
+              ]
+          Extends b_proxy -> worker newVSet newVsSet (kindFromProxy b_proxy)
+          Extended a_kind -> worker vs vSs a_kind
+      where Version i = version :: Version a
+            p = proxyFromKind k
+            newVSet = S.insert i vs
+            newVsSet = S.insert (i, typeName p) vSs
+
+
+data OldType = OldType
+
+data NewType = NewType
+
+instance SafeJSON OldType where
+  version = 0
+  kind = extended_extension
+
+instance SafeJSON NewType where
+  version = 1
+  kind = extended_extension
+
+instance ToJSON OldType where
+  toJSON _ = Null
+
+instance ToJSON NewType where
+  toJSON _ = Null
+
+instance FromJSON OldType where
+  parseJSON Null = pure OldType
+  parseJSON _ = fail "uhhh wat"
+
+instance FromJSON NewType where
+  parseJSON Null = pure NewType
+  parseJSON _ = fail "uhhh wat"
+
+instance Migrate OldType where
+  type MigrateFrom OldType = NewType
+  migrate = const OldType
+
+instance Migrate NewType where
+  type MigrateFrom NewType = OldType
+  migrate = const NewType
+
+instance Migrate (Reverse OldType) where
+  type MigrateFrom (Reverse OldType) = NewType
+  migrate = const $ Reverse OldType
+
+instance Migrate (Reverse NewType) where
+  type MigrateFrom (Reverse NewType) = OldType
+  migrate = const $ Reverse NewType

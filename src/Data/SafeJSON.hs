@@ -1,20 +1,20 @@
 module Data.SafeJSON
     ( -- * SafeJSON Instance
-      SafeJSON(version, kind, safeTo, safeFrom, objectProfile, errorTypeName)
+      SafeJSON(version, kind, safeTo, safeFrom, objectProfile, typeName)
     , contain
     , safeToJSON
     , safeFromJSON
     , Version
+    , noVersion
     , Kind
-    , primitive
     , base
     , extension
     -- ** Showing the type
     --
     -- These helper functions can easily be used in the
-    -- definition of 'errorTypeName'. As long as the type
+    -- definition of 'typeName'. As long as the type
     -- being defined has a 'Typeable' instance.
-    , typeName
+    , typeName0
     , typeName1
     , typeName2
     , typeName3

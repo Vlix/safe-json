@@ -20,10 +20,14 @@ extra-source-files:
 description:         Please see README at <https://github.com/Vlix/safe-json#readme>
 
 dependencies:
-- base >= 4.7 && < 5
 - aeson
+- base >= 4.7 && < 5
+- containers
+- scientific
 - text
+- time
 - unordered-containers
+- uuid-types
 
 library:
   source-dirs: src
