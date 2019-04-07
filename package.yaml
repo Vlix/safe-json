@@ -23,16 +23,20 @@ dependencies:
 - aeson
 - base >= 4.7 && < 5
 - containers
+- dlist
 - scientific
 - text
 - time
 - unordered-containers
 - uuid-types
+- vector
 
 library:
   source-dirs: src
   exposed-modules:
     - Data.SafeJSON
+  default-extensions:
+    - OverloadedStrings
 
 tests:
   safe-json-test:

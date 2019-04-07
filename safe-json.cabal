@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 293fdb7da53b5ac4720d311bec18e5ddcfb53d77e02cc82afa5cf6e2e15fe99d
+-- hash: 1851846a7d53c59cd41f1635830ae9a8c383fd09069865c18c2f0fbc3a1c05e9
 
 name:           safe-json
 version:        0.1.0.0
@@ -35,15 +35,18 @@ library
       Paths_safe_json
   hs-source-dirs:
       src
+  default-extensions: OverloadedStrings
   build-depends:
       aeson
     , base >=4.7 && <5
     , containers
+    , dlist
     , scientific
     , text
     , time
     , unordered-containers
     , uuid-types
+    , vector
   default-language: Haskell2010
 
 test-suite safe-json-test
@@ -58,10 +61,12 @@ test-suite safe-json-test
       aeson
     , base >=4.7 && <5
     , containers
+    , dlist
     , safe-json
     , scientific
     , text
     , time
     , unordered-containers
     , uuid-types
+    , vector
   default-language: Haskell2010
