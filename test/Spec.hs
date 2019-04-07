@@ -1,6 +1,19 @@
+module Main where
 
-import Test.Tasty
-import Test.Tasty.HUnit
+
+import Test.Tasty as Tasty
+
+import ConsistencyTests
+import MigrationTests
+import PrimitiveTests
+
 
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = Tasty.defaultMain tests
+
+tests :: TestTree
+tests = testGroup "\nSafeJSON"
+    [ primitiveTests
+    , migrationTests
+    , consistencyTests
+    ]

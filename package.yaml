@@ -52,3 +52,5 @@ tests:
     - safe-json
     - tasty
     - tasty-hunit
+    default-extensions:
+      - OverloadedStrings

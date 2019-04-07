@@ -313,19 +313,3 @@ instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
   typeName _ = "Sum"
   version = noVersion
 -}
-
--- ----------------------------- --
---   SafeJSON Helper Functions   --
--- ----------------------------- --
-
--- (<$>>) :: (a -> b) -> Contained a -> Contained b
--- (<$>>) f (Contained a) = Contained $ f a
-
--- (<*>>) :: Contained (a -> b) -> Contained a -> Contained b
--- (<*>>) (Contained f) (Contained a) = Contained $ f a
-
--- unsafeTo :: SafeJSON a => a -> Value
--- unsafeTo = unsafeUnpack . safeTo
-
--- unsafeFrom :: SafeJSON a => Value -> Parser a
--- unsafeFrom = unsafeUnpack . safeFrom

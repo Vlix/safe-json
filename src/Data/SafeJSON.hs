@@ -9,6 +9,8 @@ module Data.SafeJSON
     , Kind
     , base
     , extension
+    , extended_base
+    , extended_extension
     -- ** Showing the type
     --
     -- These helper functions can easily be used in the
@@ -25,6 +27,7 @@ module Data.SafeJSON
     , ProfileVersions(..)
     -- * Migration
     , Migrate(..)
+    , Reverse(..)
     ) where
 
 
