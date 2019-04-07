@@ -26,6 +26,7 @@ dependencies:
 - dlist
 - hashable
 - scientific
+- tasty-hunit
 - text
 - time
 - unordered-containers
@@ -49,3 +50,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - safe-json
+    - tasty
+    - tasty-hunit

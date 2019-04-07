@@ -36,8 +36,6 @@ contain :: a -> Contained a
 contain = Contained
 
 -- TODO: Explain how Version Nothing works.
--- (Version Nothing can also be used to avoid clashes with
--- the "_v" or "__v" fields)
 
 -- Making SafeJSON instances for non-Object 'Value's
 -- creates additional overhead (since they get turned into objects)
@@ -217,7 +215,7 @@ dataField = "~d"
 
 -- We don't check consistency here, since we're only adding a version number.
 safeToJSON :: forall a. SafeJSON a => a -> Value
-safeToJSON a = case kindFromProxy p of
+safeToJSON a = case thisKind of
     Base | i == Nothing -> tojson
     _ -> case tojson of
             Object o -> Object $ HM.insert versionField (toJSON i) o
@@ -227,7 +225,7 @@ safeToJSON a = case kindFromProxy p of
                 ]
   where tojson = unsafeUnpack $ safeTo a
         Version i = version :: Version a
-        p = Proxy :: Proxy a
+        thisKind = kind :: Kind a
 
 -- | The consistency is not checked before every parsing.
 --   This will either always run or always fail depending on
@@ -235,17 +233,18 @@ safeToJSON a = case kindFromProxy p of
 --   since checkConsistency is
 safeFromJSON :: forall a. SafeJSON a => Value -> Parser a
 safeFromJSON origVal = checkConsistency p $
-    case kindFromProxy p of
+    case thisKind of
       Base          | i == Nothing -> unsafeUnpack $ safeFrom origVal
       Extended Base | i == Nothing -> unsafeUnpack $ safeFrom origVal
       _ -> case origVal of
               Object o -> firstTry o <|> secondTry o <|> withoutVersion
-              _ -> safejsonErr $ "unparsable JSON value (not an object): " ++ typeName p
+              _ -> withoutVersion <|> safejsonErr ("unparsable JSON value (not an object): " ++ typeName p)
   where Version i = version :: Version a
+        thisKind = kind :: Kind a
         p = Proxy :: Proxy a
         safejsonErr s = fail $ "safejson: " ++ s
         withVersion v val = either parseErr id eResult
-          where eResult = constructParserFromVersion val v $ kindFromVersion v
+          where eResult = constructParserFromVersion val v thisKind
                 parseErr e = safejsonErr $ mconcat
                     ["couldn't parse with found version (", show v, "): ", e]
         withoutVersion = withVersion noVersion origVal
@@ -257,7 +256,7 @@ safeFromJSON origVal = checkConsistency p $
             bd <- o .: dataField
             -- This is an extra counter measure against false parsing.
             -- The simple data object should contain exactly the
-            -- (v'') and (d') fields
+            -- (~v) and (~d) fields
             when (length (HM.toList o) /= 2) $ fail "not simple data"
             withVersion (Version $ Just v) bd
 
@@ -268,7 +267,7 @@ constructParserFromVersion :: SafeJSON a => Value -> Version a -> Kind a -> Eith
 constructParserFromVersion val origVersion origKind =
     worker False origVersion origKind
   where
-    worker :: forall a. SafeJSON a => Bool -> Version a -> Kind a -> Either String (Parser a)
+    worker :: forall b. SafeJSON b => Bool -> Version b -> Kind b -> Either String (Parser b)
     worker fwd thisVersion thisKind
       | version == thisVersion = return $ unsafeUnpack $ safeFrom val
       | otherwise = case thisKind of
@@ -276,16 +275,16 @@ constructParserFromVersion val origVersion origKind =
           Extended Base -> Left errorMsg
           Extends p     -> fmap migrate <$> worker fwd (castVersion thisVersion) (kindFromProxy p)
           Extended k    -> do
-              let forwardParser :: Either String (Parser a)
+              let forwardParser :: Either String (Parser b)
                   forwardParser = fmap (unReverse . migrate) <$> worker True (castVersion thisVersion) (kindFromProxy reverseProxy)
-                  previousParser :: Either String (Parser a)
+                  previousParser :: Either String (Parser b)
                   previousParser = worker True thisVersion k
               if fwd || thisVersion == noVersion
                 then previousParser
                 else either (const previousParser) Right forwardParser
       where versionNotFound = "Cannot find parser associated with: " <> show origVersion
-            errorMsg = mconcat ["safejson: ", typeName (proxyFromKind thisKind), ": ", versionNotFound]
-            reverseProxy :: Proxy (MigrateFrom (Reverse a))
+            errorMsg = mconcat ["safejson: ", typeName (Proxy :: Proxy b), ": ", versionNotFound]
+            reverseProxy :: Proxy (MigrateFrom (Reverse b))
             reverseProxy = Proxy
 
 proxyFromKind :: Kind a -> Proxy a
@@ -388,7 +387,6 @@ checkConsistency p m =
 consistentFromProxy :: SafeJSON a => Proxy a -> Consistency a
 consistentFromProxy _ = internalConsistency
 
-{-# INLINE computeConsistency #-}
 computeConsistency :: SafeJSON a => Proxy a -> Consistency a
 computeConsistency p
 -- This checks the chain of versions to not clash or loop,
@@ -397,6 +395,7 @@ computeConsistency p
   | isObviouslyConsistent (kindFromProxy p) = Consistent
   | Just s <- invalidChain p = NotConsistent s
   | otherwise = Consistent
+{-# INLINE computeConsistency #-}
 
 isObviouslyConsistent :: Kind a -> Bool
 isObviouslyConsistent Base = True
@@ -447,7 +446,7 @@ invalidChain a_proxy =
             newVsSet = S.insert (i, typeName p) vSs
 
 
-data OldType = OldType
+data OldType = OldType deriving (Eq, Show)
 
 data NewType = NewType
 
@@ -488,3 +487,18 @@ instance Migrate (Reverse OldType) where
 instance Migrate (Reverse NewType) where
   type MigrateFrom (Reverse NewType) = OldType
   migrate = const $ Reverse NewType
+
+
+data BadJSON = BadJSON Int deriving (Eq, Show)
+
+instance FromJSON BadJSON where
+  parseJSON = withText "BadJSON" $ \case
+    "bad" -> pure $ BadJSON 1
+    _ -> fail "wat"
+
+instance ToJSON BadJSON where
+  toJSON (BadJSON 2) = String "bad"
+  toJSON _ = String "wat"
+
+instance SafeJSON BadJSON where
+  version = noVersion
