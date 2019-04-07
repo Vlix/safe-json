@@ -7,15 +7,18 @@ module Data.SafeJSON.Instances (SafeJSON(..)) where
 
 
 import Control.Applicative (Const(..))
-import Data.Aeson (DotNetTime, Value(..), (.=), object, parseJSON, toJSON)
+import Data.Aeson (DotNetTime, FromJSONKey, ToJSONKey, Value(..), parseJSON, toJSON)
 import Data.Aeson.Types (Parser)
 import Data.Char (Char)
-import Data.DList (DList)
+import Data.DList as DList (DList, fromList)
 import Data.Fixed (Fixed, HasResolution)
 import Data.Functor.Identity (Identity(..))
 import Data.Functor.Compose (Compose)
 import Data.Functor.Product (Product)
-import Data.Functor.Sum (Sum)
+import Data.Functor.Sum (Sum(..))
+import Data.Hashable (Hashable)
+import qualified Data.HashMap.Strict as HM (HashMap, fromList, toList)
+import qualified Data.HashSet as HS (HashSet, fromList, toList)
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.IntMap (IntMap)
 import Data.IntSet (IntSet)
@@ -26,7 +29,7 @@ import Data.Proxy (Proxy)
 import Data.Ratio (Ratio)
 import Data.Semigroup (First(..), Last(..), Max(..), Min(..))
 import Data.Sequence (Seq)
-import Data.Set (Set)
+import qualified Data.Set as S (Set, fromList, toList)
 import Data.Text as T (Text)
 import Data.Text.Lazy as LT (Text)
 import Data.Time
@@ -135,8 +138,8 @@ instance (SafeJSON a, SafeJSON b) => SafeJSON (Either a b) where
       case eVal of
         Left a  -> Left  <$> safeFromJSON a
         Right b -> Right <$> safeFromJSON b
-  safeTo (Left a)  = contain . toJSON . Left  $ safeToJSON a
-  safeTo (Right b) = contain . toJSON . Right $ safeToJSON b
+  safeTo (Left a)  = contain $ toJSON (Left  $ safeToJSON a :: Either Value Void)
+  safeTo (Right b) = contain $ toJSON (Right $ safeToJSON b :: Either Void Value)
   typeName = typeName2
   version = noVersion
 
@@ -186,17 +189,65 @@ instance (SafeJSON a, VG.Vector VU.Vector a) => SafeJSON (VU.Vector a) where
   typeName = typeName1
   version = noVersion
 
+
+#define BASIC_UNARY_FUNCTOR(T)                      \
+instance SafeJSON a => SafeJSON (T a) where {       \
+  safeFrom val = contain $ do {                     \
+      vs <- parseJSON val;                          \
+      mapM safeFromJSON vs };                       \
+  safeTo as = contain . toJSON $ safeToJSON <$> as; \
+  typeName = typeName1;                             \
+  version = noVersion }
+
 -- | Lists are seen only as a container for safe values.
 --
 -- '[a]' is implemented as a collection of 'SafeJSON a's in such a way
 -- that when parsing a collection of all migratable versions, the result
 -- will be a list of that type where each element has been migrated as appropriate.
-instance SafeJSON a => SafeJSON [a] where
-  safeFrom x = contain $ do
-      vs <- parseJSON x
-      mapM safeFromJSON vs
+BASIC_UNARY_FUNCTOR([])
+BASIC_UNARY_FUNCTOR(IntMap)
+BASIC_UNARY_FUNCTOR(NonEmpty)
+BASIC_UNARY_FUNCTOR(Seq)
+BASIC_UNARY_FUNCTOR(Tree)
+
+instance (SafeJSON a) => SafeJSON (DList a) where
+  safeFrom val = contain $ do
+      vs <- parseJSON val
+      DList.fromList <$> mapM safeFromJSON vs
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName1
+  version = noVersion
+
+instance (SafeJSON a, Ord a) => SafeJSON (S.Set a) where
+  safeFrom val = contain $ do
+      vs <- parseJSON val
+      S.fromList <$> safeFromJSON vs
+  safeTo as = contain . toJSON $ safeToJSON <$> S.toList as
+  typeName = typeName1
+  version = noVersion
+
+instance (Ord k, FromJSONKey k, ToJSONKey k, SafeJSON a) => SafeJSON (Map k a) where
+  safeFrom val = contain $ do
+      vs <- parseJSON val
+      mapM safeFromJSON vs
+  safeTo as = contain . toJSON $ safeToJSON <$> as
+  typeName = typeName2
+  version = noVersion
+
+instance (SafeJSON a, Eq a, Hashable a) => SafeJSON (HS.HashSet a) where
+  safeFrom val = contain $ do
+      vs <- parseJSON val
+      HS.fromList <$> safeFromJSON vs
+  safeTo as = contain . toJSON $ safeToJSON <$> HS.toList as
+  typeName = typeName1
+  version = noVersion
+
+instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON (HM.HashMap a b) where
+  safeFrom val = contain $ do
+      vs <- parseJSON val
+      fmap HM.fromList . mapM (mapM safeFromJSON) $ HM.toList vs
+  safeTo as = contain . toJSON $ safeToJSON <$> as
+  typeName = typeName2
   version = noVersion
 
 instance (SafeJSON a, SafeJSON b) => SafeJSON (a, b) where
@@ -245,6 +296,23 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d, SafeJSON e) => SafeJSO
   typeName = typeName5
   version = noVersion
 
+
+-- --------------------------- --
+--   SafeJSON Tertiary Types   --
+-- --------------------------- --
+{-
+-- Want to add 'Compose', 'Product' and 'Sum' still
+
+instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
+  safeFrom (Object o) = contain $ do
+      mapM safeFromJSON v
+  safeFrom _ = contain $ parseJSON Null
+  -- Copied over from aeson's handling of 'Sum'
+  safeTo (InL a) = contain $ object [ "InL" .= safeToJSON a ]
+  safeTo (InR a) = contain $ object [ "InR" .= safeToJSON a ]
+  typeName _ = "Sum"
+  version = noVersion
+-}
 
 -- ----------------------------- --
 --   SafeJSON Helper Functions   --

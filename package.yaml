@@ -24,6 +24,7 @@ dependencies:
 - base >= 4.7 && < 5
 - containers
 - dlist
+- hashable
 - scientific
 - text
 - time
