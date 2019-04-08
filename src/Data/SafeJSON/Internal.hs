@@ -116,11 +116,14 @@ class SafeJSON (MigrateFrom a) => Migrate a where
   type MigrateFrom a
   migrate :: MigrateFrom a -> a
 
+
 -- | A simple numeric version id.
 --
 --   'Version' has a 'Num' instance and as such can be
 --   declared using integer literals: @version = 2@
 newtype Version a = Version {unVersion :: Maybe Int64}
+-- Is it better to use 'Int32'?
+-- Maybe 'Int64' is too big for JSON?
   deriving (Eq)
 
 -- | 'noVersion' is used for types that don't have

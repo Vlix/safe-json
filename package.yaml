@@ -7,7 +7,7 @@ maintainer:          "felix.paulusma@gmail.com"
 copyright:           "2019 Felix Paulusma"
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
-category:            "Development"
+category:            "JSON"
 
 extra-source-files:
 - README.md
@@ -22,11 +22,13 @@ description:         Please see README at <https://github.com/Vlix/safe-json#rea
 dependencies:
 - aeson
 - base >= 4.7 && < 5
+- bytestring
 - containers
 - dlist
 - hashable
 - scientific
 - tasty-hunit
+- tasty-quickcheck
 - text
 - time
 - unordered-containers
@@ -37,6 +39,7 @@ library:
   source-dirs: src
   exposed-modules:
     - Data.SafeJSON
+    - Data.SafeJSON.Test
   default-extensions:
     - OverloadedStrings
 
@@ -49,8 +52,11 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - generic-arbitrary
     - safe-json
+    - quickcheck-instances
     - tasty
     - tasty-hunit
+    - tasty-quickcheck
     default-extensions:
       - OverloadedStrings

@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.SafeJSON.Instances (SafeJSON(..)) where
@@ -27,6 +30,7 @@ import Data.Map (Map)
 import Data.Monoid (Dual(..))
 import Data.Proxy (Proxy)
 import Data.Ratio (Ratio)
+import Data.Scientific (Scientific)
 import Data.Semigroup (First(..), Last(..), Max(..), Min(..))
 import Data.Sequence (Seq)
 import qualified Data.Set as S (Set, fromList, toList)
@@ -34,7 +38,6 @@ import Data.Text as T (Text)
 import Data.Text.Lazy as LT (Text)
 import Data.Time
 import Data.Tree (Tree)
-import Data.Scientific (Scientific)
 import Data.UUID.Types (UUID)
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as VG
@@ -94,6 +97,9 @@ instance (HasResolution a) => SafeJSON (Fixed a) where
 
 instance SafeJSON (Proxy a) where
   typeName = typeName1
+  version = noVersion
+
+instance {-# OVERLAPPING #-} SafeJSON String where
   version = noVersion
 
 
@@ -295,21 +301,3 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d, SafeJSON e) => SafeJSO
   safeTo (a,b,c,d,e) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d, safeToJSON e)
   typeName = typeName5
   version = noVersion
-
-
--- --------------------------- --
---   SafeJSON Tertiary Types   --
--- --------------------------- --
-{-
--- Want to add 'Compose', 'Product' and 'Sum' still
-
-instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
-  safeFrom (Object o) = contain $ do
-      mapM safeFromJSON v
-  safeFrom _ = contain $ parseJSON Null
-  -- Copied over from aeson's handling of 'Sum'
-  safeTo (InL a) = contain $ object [ "InL" .= safeToJSON a ]
-  safeTo (InR a) = contain $ object [ "InR" .= safeToJSON a ]
-  typeName _ = "Sum"
-  version = noVersion
--}
