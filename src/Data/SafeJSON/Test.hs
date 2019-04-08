@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Data.SafeJSON.Test (
   testConsistency
   , Proxy(..)
@@ -10,6 +11,10 @@ module Data.SafeJSON.Test (
   , testReverseMigration
   , (>=?)
   , (<=?)
+  , testRoundTrip
+  , testReverseRoundTrip
+  -- * For testing purposes
+  , Version()
   ) where
 
 
@@ -17,6 +22,7 @@ import Data.Aeson.Types (parseEither)
 import Data.Proxy
 import Data.SafeJSON.Internal
 import Test.Tasty.HUnit (Assertion, assertEqual)
+import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
 
 -- | /(without @TypeApplication@ pragma)/
@@ -55,7 +61,7 @@ testSafeToFrom a = "To JSON and back not consistent" `assertEqual` Right a $
 testMigration :: (Show a, Eq a, Migrate a) => MigrateFrom a -> a -> Assertion
 testMigration = assertEqual "Unexpected result of SafeJSON migration" . migrate
 
--- | Similar to 'testMigration', but using 'Migrate (Reverse a)'.
+-- | Similar to 'testMigration', but using @Migrate (Reverse a)@.
 --
 -- The first argument here is the newer type, which will be migrated back
 -- to the expected second argument (older type).
@@ -70,3 +76,20 @@ infix 1 >=?, <=?
 -- | Operator synonymous with 'testReverseMigration'
 (<=?) :: (Show a, Eq a, Migrate (Reverse a)) => MigrateFrom (Reverse a) -> a -> Assertion
 (<=?) = testReverseMigration
+
+-- | This test verifies that direct migration, and migration
+--   through encoding and decoding to the newer type, is equivalent.
+testRoundTrip :: forall a. (Eq a, Show a, SafeJSON a, Migrate a) => MigrateFrom a -> Assertion
+testRoundTrip oldType = "Unexpected result of decoding encoded older type" `assertEqual` Right (migrate oldType :: a) $
+    parseEither (safeFromJSON . safeToJSON) oldType
+
+-- | Similar to 'testRoundTrip', but tests the migration from a newer type
+--   to the older type, in case of a @Migrate (Reverse a)@ instance
+testReverseRoundTrip :: forall a. (Eq a, Show a, SafeJSON a, Migrate (Reverse a)) => MigrateFrom (Reverse a) -> Assertion
+testReverseRoundTrip newType = "Unexpected result of decoding encoded newer type" `assertEqual` Right (unReverse $ migrate newType :: a) $
+    parseEither (safeFromJSON . safeToJSON) newType
+
+instance Arbitrary (Version a) where
+  arbitrary = Version . Just <$> arbitrary
+  shrink (Version Nothing) = []
+  shrink (Version (Just a)) = noVersion : (Version . Just <$> shrinkIntegral a)
