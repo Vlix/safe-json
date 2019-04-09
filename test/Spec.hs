@@ -18,8 +18,8 @@ main = Tasty.defaultMain tests
 
 tests :: TestTree
 tests = testGroup "\nSafeJSON"
-    [ primitiveTests
-    -- , consistencyTests
+    [ {-primitiveTests
+    ,-} consistencyTests
     -- , migrationTests
     -- , numTest (Proxy :: Proxy (Version a))
     ]
@@ -46,6 +46,8 @@ Needed to be tested:
 - Consistency should be reliable
     - show double version numbers/loops when inconsistent
     - succeed if the chain is valid
+    - valid chain also needs any 'extended_*' instance's @MigrateFrom (Reverse a)@
+      to be an 'extension' or 'extended_extension'
 
 - Num class of Version should be consistent with Num laws
 

@@ -27,6 +27,7 @@ dependencies:
 - dlist
 - hashable
 - scientific
+- tasty
 - tasty-hunit
 - tasty-quickcheck
 - text
