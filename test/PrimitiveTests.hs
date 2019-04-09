@@ -55,6 +55,30 @@ primitiveTests = testGroup "Primitives"
   , fromJSONEquivalence
   ]
 
+
+parseValueAnd :: forall a. SafeJSON a => T.Text -> (a -> IO ()) -> TestTree
+parseValueAnd t f = testCase (T.unpack t) $ do
+    mVal <- A.decodeFileStrict "test/json/primitives.json"
+    maybe
+      (assertFailure "couldn't read file")
+      (either fail f . parseEither go)
+      mVal
+  where go = A.withObject "test" $ \o -> do
+                o .: t >>= safeFromJSON
+
+parseValue :: forall a. SafeJSON a => T.Text -> TestTree
+parseValue t = parseValueAnd t (const $ return () :: a -> IO ())
+
+fromJSONTest :: forall a. (SafeJSON a, Eq a, Show a) => T.Text -> TestTree
+fromJSONTest t = parseValueAnd t $ \val -> do
+    let a = (parseEither A.parseJSON val :: Either String a)
+        b = parseEither safeFromJSON val
+    assertEqual "SafeJSON not equivalent to FromJSON" a b
+
+toJSONTest :: forall a. (SafeJSON a, Arbitrary a, Show a) => String -> TestTree
+toJSONTest s = testProperty s $ \a -> A.toJSON a == safeToJSON (a :: a)
+
+
 regularParsing :: TestTree
 regularParsing = testGroup "Parsing from JSON"
   [ parseValue @Bool       "Bool"
@@ -132,19 +156,6 @@ regularParsing = testGroup "Parsing from JSON"
   , parseValue @(Int, Bool, T.Text, [Int], Double) "Tuple5"
   ]
 
-parseValue :: forall a. SafeJSON a => T.Text -> TestTree
-parseValue t = testCase (T.unpack t) $ do
-    mVal <- A.decodeFileStrict "test/primitives.json"
-    eVal <- maybe
-              (assertFailure "couldn't read file")
-              (return . parseEither go)
-              mVal
-    either
-        fail
-        (\_ -> return ())
-        (eVal :: Either String a)
-  where go = A.withObject "test" $ \o -> do
-                o .: t >>= safeFromJSON
 
 --------------------------------
 
@@ -219,12 +230,6 @@ toJSONEquivalence = testGroup "safeToJSON === toJSON"
   , toJSONTest @(Int, Bool, T.Text, [Int], Double) "Tuple5"
   ]
 
-toJSONTest :: forall a. (SafeJSON a, Arbitrary a, Show a) => String -> TestTree
-toJSONTest s = testProperty s go
-  where go :: a -> Bool
-        go a = A.toJSON a == safeToJSON a
-
-
 fromJSONEquivalence :: TestTree
 fromJSONEquivalence = testGroup "safeFromJSON === fromJSON"
   [ fromJSONTest @Bool         "Bool"
@@ -295,17 +300,3 @@ fromJSONEquivalence = testGroup "safeFromJSON === fromJSON"
   , fromJSONTest @(Int, Bool, T.Text, [Int]) "Tuple4"
   , fromJSONTest @(Int, Bool, T.Text, [Int], Double) "Tuple5"
   ]
-
-fromJSONTest :: forall a. (SafeJSON a, Eq a, Show a) => T.Text -> TestTree
-fromJSONTest t = testCase (T.unpack t) $ do
-    mVal <- A.decodeFileStrict "test/primitives.json"
-    eVal <- maybe
-              (assertFailure "couldn't read file")
-              (return . parseEither go)
-              mVal
-    either fail go2 eVal
-  where go = A.withObject "test" $ \o -> do
-                o .: t >>= safeFromJSON
-        go2 val = assertEqual "SafeJSON not equivalen to FromJSON" a b
-          where a = (parseEither A.parseJSON val :: Either String a)
-                b = parseEither safeFromJSON val

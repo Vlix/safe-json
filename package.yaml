@@ -39,6 +39,7 @@ dependencies:
 library:
   source-dirs: src
   exposed-modules:
+    - Data.Aeson.Safe
     - Data.SafeJSON
     - Data.SafeJSON.Test
   default-extensions:
@@ -59,5 +60,6 @@ tests:
     - tasty
     - tasty-hunit
     - tasty-quickcheck
+    - temporary
     default-extensions:
       - OverloadedStrings

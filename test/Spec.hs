@@ -10,6 +10,7 @@ import Data.SafeJSON (Version)
 import ConsistencyTests
 import MigrationTests
 import PrimitiveTests
+import SafeAeson
 import VersionNum
 
 
@@ -18,11 +19,11 @@ main = Tasty.defaultMain tests
 
 tests :: TestTree
 tests = testGroup "\nSafeJSON"
-    [ numTest (Proxy :: Proxy (Version a))
+    [ {-numTest (Proxy :: Proxy (Version a))
     , primitiveTests
     , consistencyTests
-    , migrationTests
-    -- , encodeDecodeTests -- These should test the Data.Aeson.Safe functions
+    , encodeDecodeTests
+    ,-} migrationTests
     ]
 
 
@@ -36,19 +37,23 @@ Needed to be tested:
         V  - toJSON a @=? safeToJSON a
         V  - parseJSON a @=? safeFromJSON a
 
-- V  a @=? safeFromJSON (safeToJSON a)
-        V  - all primitives
-        V  - other types regardless of position in the chain
-
-- V  migrate a @=? safeFromJSON (safeToJSON a)
-        - also with 'Reverse a'
-
-- Data.Aeson.Safe functions should behave as expected
-
 - Consistency should be reliable
     V  - show double version numbers/loops when inconsistent
     V  - succeed if the chain is valid
     V  - chain is also inconsistent if 2 types within (not the one being checked) share version numbers
+    V  a @=? safeFromJSON (safeToJSON a)
+        V  - all primitives
+        V  - other types regardless of position in the chain
+    V  migrate a @=? safeFromJSON (safeToJSON a)
+        V  - also with 'Reverse a'
+
+- V  Data.Aeson.Safe functions should behave as expected
+    V  - encode <-> decode
+    V  - encodeFile <-> decodeFile (withTempFile)
+
+- [] Migration tests to be done:
+    [] - should migrate from 3-4 versions back
+    [] - should migrate from 1 version forward
     [] - container-like types should handle different versions:
          SafeJSON a => [a] should be able to handle different versions of 'a'
 
