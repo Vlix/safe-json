@@ -19,14 +19,13 @@ import Control.Monad (when)
 import Control.Monad.Fail (MonadFail)
 import Data.Aeson
 import Data.Aeson.Types (Parser)
-import Data.HashMap.Strict as HM (insert, toList)
+import Data.HashMap.Strict as HM (insert, size)
 import Data.Int
 import qualified Data.List as List (intercalate)
 import Data.Maybe (fromMaybe)
 import Data.Proxy
 import qualified Data.Set as S
-import Data.String (IsString(..))
-import Data.Text (Text, pack)
+import Data.Text (Text)
 import Data.Typeable (Typeable, typeRep)
 
 
@@ -136,36 +135,30 @@ noVersion = Version Nothing
 instance Show (Version a) where
   show (Version mi) = "Version " ++ showV mi
 
-liftV :: (Int64 -> Int64 -> Int64) -> Maybe Int64 -> Maybe Int64 -> Maybe Int64
+liftV, liftV' :: (Int64 -> Int64 -> Int64) -> Maybe Int64 -> Maybe Int64 -> Maybe Int64
+
 liftV _ Nothing Nothing = Nothing
 liftV f ma mb = Just $ toZ ma `f` toZ mb
 
+liftV' _ Nothing Nothing = Nothing
+liftV' f ma mb = Just $ toZ' ma `f` toZ' mb
+
 -- | Nothing is handled as if it's zero.
 instance Num (Version a) where
-  Version ma + Version mb = Version $ liftV (+) ma mb
-  Version ma - Version mb = Version $ liftV (-) ma mb
-  Version ma * Version mb = Version $ liftV (*) ma mb
+  Version ma + Version mb = Version $ liftV  (+) ma mb
+  Version ma - Version mb = Version $ liftV  (-) ma mb
+  Version ma * Version mb = Version $ liftV' (*) ma mb
   negate (Version ma) = Version $ negate <$> ma
   abs    (Version ma) = Version $ abs    <$> ma
   signum (Version ma) = Version $ signum <$> ma
   fromInteger i = Version $ Just $ fromInteger i
 
-toZ :: Num i => Maybe i -> i
-toZ = fromMaybe $ fromInteger 0
+toZ, toZ' :: Num i => Maybe i -> i
+toZ  = fromMaybe $ fromInteger 0
+toZ' = fromMaybe $ fromInteger 1
 
 castVersion :: Version a -> Version b
 castVersion (Version i) = Version i
-
--- | This is the key for the field used for the version number
---   in the JSON object for the type of 'a'
-newtype VersionField a = VersionField {unVersionField :: Text}
-  deriving (Eq)
-
-instance Show (VersionField a) where
-  show (VersionField t) = "VersionField " ++ show t
-
-instance IsString (VersionField a) where
-  fromString s = VersionField $ pack s
 
 -- | This is a wrapper type used migrating backwards in the chain of compatible types.
 --
@@ -175,8 +168,9 @@ newtype Reverse a = Reverse { unReverse :: a }
 
 -- | The kind of a data type determines how it is tagged (if at all).
 --
---   Base kinds (see 'base') are not tagged with a version
---   id and cannot be extended later.
+--   Base kinds (see 'base') are at the bottom of the chain and can
+--   optionally have no version tag. (@Base@ and @Extended Base@ are
+--   the only kinds that can have no version)
 --
 --   Extensions (see 'extension') tells the system that there exists
 --   a previous version of the data type which should be migrated if
@@ -219,7 +213,8 @@ dataField = "~d"
 -- We don't check consistency here, since we're only adding a version number.
 safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case thisKind of
-    Base | i == Nothing -> tojson
+    Base          | i == Nothing -> tojson
+    Extended Base | i == Nothing -> tojson
     _ -> case tojson of
             Object o -> Object $ HM.insert versionField (toJSON i) o
             other    -> object
@@ -236,32 +231,59 @@ safeToJSON a = case thisKind of
 --   since checkConsistency is
 safeFromJSON :: forall a. SafeJSON a => Value -> Parser a
 safeFromJSON origVal = checkConsistency p $
-    case thisKind of
-      Base          | i == Nothing -> unsafeUnpack $ safeFrom origVal
-      Extended Base | i == Nothing -> unsafeUnpack $ safeFrom origVal
-      _ -> case origVal of
-              Object o -> firstTry o <|> secondTry o <|> withoutVersion
-              _ -> withoutVersion <|> safejsonErr ("unparsable JSON value (not an object): " ++ typeName p)
+    case origKind of
+      Base       | i == Nothing -> unsafeUnpack $ safeFrom origVal
+      Extended k | i == Nothing -> extendedCase k
+      _ -> regularCase
   where Version i = version :: Version a
-        thisKind = kind :: Kind a
+        origKind = kind :: Kind a
         p = Proxy :: Proxy a
         safejsonErr s = fail $ "safejson: " ++ s
-        withVersion v val = either parseErr id eResult
-          where eResult = constructParserFromVersion val v thisKind
+
+        regularCase = case origVal of
+            Object o -> do
+                (mVal, v) <- firstTry o <|> secondTry o <|> pure (Nothing, noVersion)
+                let val = fromMaybe origVal mVal
+                withVersion v val origKind
+            _ -> withoutVersion <|> safejsonErr ("unparsable JSON value (not an object): " ++ typeName p)
+          where withoutVersion = withVersion noVersion origVal origKind
+
+        -- This only runs if the SafeJSON being tried has 'kind' of 'extended_*'
+        -- and the version is 'noVersion'.
+        -- (internalConsistency checks that it should be an 'Extended Base' if it has 'noVersion')
+        -- We check the newer version first, since it's better to try to find the
+        -- version, if there is one, to guarantee the right parser.
+        extendedCase :: Migrate (Reverse a) => Kind a -> Parser a
+        extendedCase k = case k of { Base -> go; _ -> regularCase }
+          where go = case origVal of
+                        Object o -> tryNew o <|> tryOrig
+                        _ -> tryOrig
+                tryNew o = do
+                    (mVal, v) <- firstTry o <|> secondTry o
+                    let forwardKind = getForwardKind k
+                        forwardVersion = castVersion v
+                        val = fromMaybe origVal mVal
+                        getForwardParser = withVersion forwardVersion val forwardKind
+                    unReverse . migrate <$> getForwardParser
+                tryOrig = unsafeUnpack $ safeFrom origVal
+
+        withVersion :: forall b. SafeJSON b => Version b -> Value ->  Kind b -> Parser b
+        withVersion v val k = either parseErr id eResult
+          where eResult = constructParserFromVersion val v k
                 parseErr e = safejsonErr $ mconcat
                     ["couldn't parse with found version (", show v, "): ", e]
-        withoutVersion = withVersion noVersion origVal
+
         firstTry o = do
             v <- o .: versionField
-            withVersion (Version $ Just v) origVal
+            return (Nothing, Version $ Just v)
         secondTry o = do
             v  <- o .: dataVersionField
             bd <- o .: dataField
             -- This is an extra counter measure against false parsing.
             -- The simple data object should contain exactly the
             -- (~v) and (~d) fields
-            when (length (HM.toList o) /= 2) $ fail "not simple data"
-            withVersion (Version $ Just v) bd
+            when (HM.size o /= 2) $ fail "not simple data"
+            return (Just bd, Version $ Just v)
 
 -- This takes the version number found (or Nothing) and tries find the type in
 -- the chain that has that version number. It will attempt to go one type up
@@ -304,6 +326,9 @@ versionFromProxy _ = version
 
 versionFromKind :: SafeJSON a => Kind a -> Version a
 versionFromKind _ = version
+
+getForwardKind :: Migrate (Reverse a) => Kind a -> Kind (MigrateFrom (Reverse a))
+getForwardKind _ = kind
 
 -- | Type name string representation of a nullary type constructor.
 typeName0 :: Typeable a => Proxy a -> String
@@ -419,9 +444,9 @@ availableVersions p =
             name = typeName $ proxyFromKind thisKind
             tup = (v, name)
 
-getForwardKind :: Migrate (Reverse a) => Kind a -> Kind (MigrateFrom (Reverse a))
-getForwardKind _ = kind
-
+-- TODO: Have this output a custom type to differentiate between bad outcomes.
+-- That way the tests can be more reliable. (Did they catch what they were
+-- supposed to catch?)
 invalidChain :: SafeJSON a => Proxy a -> Maybe String
 invalidChain a_proxy =
   worker mempty mempty (kindFromProxy a_proxy)
