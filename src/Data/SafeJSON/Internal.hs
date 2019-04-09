@@ -250,7 +250,7 @@ safeFromJSON origVal = checkConsistency p $
 
         -- This only runs if the SafeJSON being tried has 'kind' of 'extended_*'
         -- and the version is 'noVersion'.
-        -- (internalConsistency checks that it should be an 'Extended Base' if it has 'noVersion')
+        -- (internalConsistency checks that it should be an 'Extended Base' since it has 'noVersion')
         -- We check the newer version first, since it's better to try to find the
         -- version, if there is one, to guarantee the right parser.
         extendedCase :: Migrate (Reverse a) => Kind a -> Parser a
@@ -300,10 +300,33 @@ constructParserFromVersion val origVersion origKind =
           Extended Base -> Left errorMsg
           Extends p     -> fmap migrate <$> worker fwd (castVersion thisVersion) (kindFromProxy p)
           Extended k    -> do
+              -- Technically, the forward and backward parsing could be
+              -- infinite, as long as all 'Migrate' instances are defined.
+              -- The problem is that chains can fork if, after going forward,
+              -- the kind of that forward type is used to continue, since
+              -- there's no guarantee that the migrations will continue backward
+              -- down the previous chain.
+              --
+              -- @
+              -- v1 Base   v1 Base       v1 Ext_Base
+              --  |         |            /\
+              --  |         |             |
+              -- \/        \/            \/
+              -- v2 Exs -> v3 Ext_Exs -> v4 Exs
+              -- @
+              --
+              -- I've opted for the following approach:
+              -- "Try forward once, if the version is wrong, go down your own chain"
               let forwardParser :: Either String (Parser b)
-                  forwardParser = fmap (unReverse . migrate) <$> worker True (castVersion thisVersion) (kindFromProxy reverseProxy)
+                  forwardParser = do
+                      if castVersion thisVersion /= versionFromProxy reverseProxy
+                          then previousParser
+                          else Right $ unReverse . migrate <$> unsafeUnpack (safeFrom val)
+
                   previousParser :: Either String (Parser b)
                   previousParser = worker True thisVersion k
+              -- If we've already looked ahead, or if it's 'noVersion', we go back.
+              -- ('noVersion' means we need to find the 'Base', that's always backwards)
               if fwd || thisVersion == noVersion
                 then previousParser
                 else either (const previousParser) Right forwardParser
@@ -314,6 +337,9 @@ constructParserFromVersion val origVersion origKind =
 
 proxyFromKind :: Kind a -> Proxy a
 proxyFromKind _ = Proxy
+
+proxyFromVersion :: Version a -> Proxy a
+proxyFromVersion _ = Proxy
 
 kindFromProxy :: SafeJSON a => Proxy a -> Kind a
 kindFromProxy _ = kind
@@ -467,7 +493,9 @@ invalidChain a_proxy =
               , " but it's 'kind' definition is not 'base' or 'extended_base'"
               ]
           Extends b_proxy -> worker newVSet newVsSet (kindFromProxy b_proxy)
-          Extended a_kind -> worker vs vSs a_kind
+          Extended a_kind -> let v@(Version i') = versionFromKind $ getForwardKind a_kind
+                                 tup = (i', typeName (proxyFromVersion v))
+                              in worker (S.insert i' vs) (S.insert tup vSs) a_kind
       where Version i = version :: Version a
             p = proxyFromKind k
             newVSet = S.insert i vs
