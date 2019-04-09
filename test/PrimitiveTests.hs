@@ -226,7 +226,7 @@ toJSONTest s = testProperty s go
 
 
 fromJSONEquivalence :: TestTree
-fromJSONEquivalence = testGroup "safeToJSON === fromJSON"
+fromJSONEquivalence = testGroup "safeFromJSON === fromJSON"
   [ fromJSONTest @Bool         "Bool"
   , fromJSONTest @Ordering     "Ordering"
   , fromJSONTest @()           "Unit"

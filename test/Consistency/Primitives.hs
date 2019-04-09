@@ -1,15 +1,9 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 module Consistency.Primitives where
 
 
 import Control.Applicative (Const)
 import Data.Aeson (DotNetTime, Value)
-import Data.Aeson.Types (parseEither)
 import Data.Char (Char)
 import Data.DList (DList)
 import Data.Fixed (E12, Fixed)
@@ -43,83 +37,79 @@ import Foreign.C.Types (CTime)
 import Numeric.Natural (Natural)
 
 import Test.Tasty
-import Test.Tasty.QuickCheck (Arbitrary(..), testProperty)
 
-import Data.SafeJSON
+import Data.SafeJSON()
+import Data.SafeJSON.Test (testRoundTripProp)
 import Instances()
 
 
 primitiveConsistency :: TestTree
 primitiveConsistency = testGroup "Primitives conversions"
-  [ testToFrom @Bool           "Bool"
-  , testToFrom @Ordering       "Ordering"
-  , testToFrom @()             "()"
-  , testToFrom @Char           "Char"
-  , testToFrom @Float          "Float"
-  , testToFrom @Double         "Double"
-  , testToFrom @Int            "Int"
-  , testToFrom @Natural        "Natural"
-  , testToFrom @Integer        "Integer"
-  , testToFrom @Int8           "Int8"
-  , testToFrom @Int16          "Int16"
-  , testToFrom @Int32          "Int32"
-  , testToFrom @Int64          "Int64"
-  , testToFrom @Word           "Word"
-  , testToFrom @Word8          "Word8"
-  , testToFrom @Word16         "Word16"
-  , testToFrom @Word32         "Word32"
-  , testToFrom @Word64         "Word64"
-  , testToFrom @T.Text         "T.Text"
-  , testToFrom @LT.Text        "LT.Text"
-  , testToFrom @DV.Version     "DV.Version"
-  , testToFrom @Scientific     "Scientific"
-  , testToFrom @IntSet         "IntSet"
-  , testToFrom @UUID           "UUID"
-  , testToFrom @CTime          "CTime"
-  -- , testToFrom @ZonedTime      "ZonedTime" -- Apparently, there's a reason there's no Eq instance
-  , testToFrom @LocalTime      "LocalTime"
-  , testToFrom @TimeOfDay      "TimeOfDay"
-  , testToFrom @UTCTime        "UTCTime"
-  , testToFrom @NominalDiffTime"NominalDiffTime"
-  , testToFrom @DiffTime       "DiffTime"
-  , testToFrom @Day            "Day"
-  , testToFrom @DotNetTime     "DotNetTime"
-  , testToFrom @Value          "Value"
+  [ testRoundTripProp @Bool           "Bool"
+  , testRoundTripProp @Ordering       "Ordering"
+  , testRoundTripProp @()             "()"
+  , testRoundTripProp @Char           "Char"
+  , testRoundTripProp @Float          "Float"
+  , testRoundTripProp @Double         "Double"
+  , testRoundTripProp @Int            "Int"
+  , testRoundTripProp @Natural        "Natural"
+  , testRoundTripProp @Integer        "Integer"
+  , testRoundTripProp @Int8           "Int8"
+  , testRoundTripProp @Int16          "Int16"
+  , testRoundTripProp @Int32          "Int32"
+  , testRoundTripProp @Int64          "Int64"
+  , testRoundTripProp @Word           "Word"
+  , testRoundTripProp @Word8          "Word8"
+  , testRoundTripProp @Word16         "Word16"
+  , testRoundTripProp @Word32         "Word32"
+  , testRoundTripProp @Word64         "Word64"
+  , testRoundTripProp @T.Text         "T.Text"
+  , testRoundTripProp @LT.Text        "LT.Text"
+  , testRoundTripProp @DV.Version     "DV.Version"
+  , testRoundTripProp @Scientific     "Scientific"
+  , testRoundTripProp @IntSet         "IntSet"
+  , testRoundTripProp @UUID           "UUID"
+  , testRoundTripProp @CTime          "CTime"
+  -- , testRoundTripProp @ZonedTime      "ZonedTime" -- Apparently, there's a reason there's no Eq instance
+  , testRoundTripProp @LocalTime      "LocalTime"
+  , testRoundTripProp @TimeOfDay      "TimeOfDay"
+  , testRoundTripProp @UTCTime        "UTCTime"
+  , testRoundTripProp @NominalDiffTime"NominalDiffTime"
+  , testRoundTripProp @DiffTime       "DiffTime"
+  , testRoundTripProp @Day            "Day"
+  , testRoundTripProp @DotNetTime     "DotNetTime"
+  , testRoundTripProp @Value          "Value"
 
-  , testToFrom @(Ratio Int)       "Ratio"
-  , testToFrom @(Fixed E12)       "Fixed"
-  , testToFrom @(Proxy ())        "Proxy"
-  , testToFrom @(Identity T.Text) "Identity"
-  , testToFrom @(First T.Text)    "First"
-  , testToFrom @(Last T.Text)     "Last"
-  , testToFrom @(Min T.Text)      "Min"
-  , testToFrom @(Max T.Text)      "Max"
-  , testToFrom @(Dual T.Text)     "Dual"
-  , testToFrom @([Int])           "[]"
-  , testToFrom @(IntMap Bool)     "IntMap"
-  , testToFrom @(NonEmpty Int)    "NonEmpty"
-  , testToFrom @(Seq T.Text)      "Seq"
-  , testToFrom @(Tree T.Text)     "Tree"
-  , testToFrom @(Const T.Text ())    "Const"
-  , testToFrom @(Maybe T.Text)       "Maybe"
-  , testToFrom @(Maybe T.Text)       "Maybe2"
-  , testToFrom @(Either T.Text Bool) "Either"
-  , testToFrom @(Either T.Text Bool) "Either2"
-  , testToFrom @(DList Int)          "DList"
-  , testToFrom @(V.Vector Int)       "V.Vector"
-  , testToFrom @(VS.Vector Int)      "VS.Vector"
-  , testToFrom @(VP.Vector Int)      "VP.Vector"
-  , testToFrom @(VU.Vector Int)      "VU.Vector"
-  , testToFrom @(Set Int)            "Set"
-  , testToFrom @(Map T.Text Int)     "Map"
-  , testToFrom @(HashSet Int)        "HashSet"
-  , testToFrom @(HashMap T.Text Int) "HashMap"
-  , testToFrom @(Int, Bool)                        "Tuple2"
-  , testToFrom @(Int, Bool, T.Text)                "Tuple3"
-  , testToFrom @(Int, Bool, T.Text, [Int])         "Tuple4"
-  , testToFrom @(Int, Bool, T.Text, [Int], Double) "Tuple5"
+  , testRoundTripProp @(Ratio Int)       "Ratio"
+  , testRoundTripProp @(Fixed E12)       "Fixed"
+  , testRoundTripProp @(Proxy ())        "Proxy"
+  , testRoundTripProp @(Identity T.Text) "Identity"
+  , testRoundTripProp @(First T.Text)    "First"
+  , testRoundTripProp @(Last T.Text)     "Last"
+  , testRoundTripProp @(Min T.Text)      "Min"
+  , testRoundTripProp @(Max T.Text)      "Max"
+  , testRoundTripProp @(Dual T.Text)     "Dual"
+  , testRoundTripProp @([Int])           "[]"
+  , testRoundTripProp @(IntMap Bool)     "IntMap"
+  , testRoundTripProp @(NonEmpty Int)    "NonEmpty"
+  , testRoundTripProp @(Seq T.Text)      "Seq"
+  , testRoundTripProp @(Tree T.Text)     "Tree"
+  , testRoundTripProp @(Const T.Text ())    "Const"
+  , testRoundTripProp @(Maybe T.Text)       "Maybe"
+  , testRoundTripProp @(Maybe T.Text)       "Maybe2"
+  , testRoundTripProp @(Either T.Text Bool) "Either"
+  , testRoundTripProp @(Either T.Text Bool) "Either2"
+  , testRoundTripProp @(DList Int)          "DList"
+  , testRoundTripProp @(V.Vector Int)       "V.Vector"
+  , testRoundTripProp @(VS.Vector Int)      "VS.Vector"
+  , testRoundTripProp @(VP.Vector Int)      "VP.Vector"
+  , testRoundTripProp @(VU.Vector Int)      "VU.Vector"
+  , testRoundTripProp @(Set Int)            "Set"
+  , testRoundTripProp @(Map T.Text Int)     "Map"
+  , testRoundTripProp @(HashSet Int)        "HashSet"
+  , testRoundTripProp @(HashMap T.Text Int) "HashMap"
+  , testRoundTripProp @(Int, Bool)                        "Tuple2"
+  , testRoundTripProp @(Int, Bool, T.Text)                "Tuple3"
+  , testRoundTripProp @(Int, Bool, T.Text, [Int])         "Tuple4"
+  , testRoundTripProp @(Int, Bool, T.Text, [Int], Double) "Tuple5"
   ]
-
-testToFrom :: forall a. (SafeJSON a, Arbitrary a, Eq a, Show a) => String -> TestTree
-testToFrom s = testProperty s $ \a ->
-    Right (a :: a) == parseEither (safeFromJSON . safeToJSON) a

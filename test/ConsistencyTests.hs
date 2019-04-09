@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
@@ -25,14 +26,18 @@ import Data.SafeJSON.Test (testConsistency', testRoundTrip)
 
 consistencyTests :: TestTree
 consistencyTests = testGroup "Consistency"
-  [ {-primitiveConsistency
-  ,-} catchLoops
+  [ catchLoops
   , catchBadInstance
-  , catchBadChain
-  , catchBadVersion
+  , dontCatchGoodType
+  , catchBadKind
+  , catchBadKind2
+  , catchBadKind3
+  , catchBadKind4
+  , catchBadKind5
+  , catchBadKind6
+  , primitiveConsistency
   , migrationConsistency
   ]
-
 
 
 shouldFail :: String -> String -> IO () -> TestTree
@@ -64,11 +69,11 @@ data LoopType2 = LoopType2
 
 instance SafeJSON LoopType1 where
   version = 0
-  kind = extended_extension
+  kind = extension
 
 instance SafeJSON LoopType2 where
   version = 1
-  kind = extended_extension
+  kind = extension
 
 instance ToJSON LoopType1 where
   toJSON _ = Null
@@ -86,19 +91,11 @@ instance FromJSON LoopType2 where
 
 instance Migrate LoopType1 where
   type MigrateFrom LoopType1 = LoopType2
-  migrate = const LoopType1
+  migrate _ = LoopType1
 
 instance Migrate LoopType2 where
   type MigrateFrom LoopType2 = LoopType1
-  migrate = const LoopType2
-
-instance Migrate (Reverse LoopType1) where
-  type MigrateFrom (Reverse LoopType1) = LoopType2
-  migrate = const $ Reverse LoopType1
-
-instance Migrate (Reverse LoopType2) where
-  type MigrateFrom (Reverse LoopType2) = LoopType1
-  migrate = const $ Reverse LoopType2
+  migrate _ = LoopType2
 
 
 -------------------------
@@ -132,65 +129,106 @@ instance SafeJSON BadJSON where
 -- Catch bad chain --
 ---------------------
 
-catchBadChain :: TestTree
-catchBadChain = shouldFail
-    "Catch bad SafeJSON instances (duplicate)"
-    "Allowed instances with duplicate versions"
-    $ do
-      shouldNotFail "DuplicateType is consistent" $ testConsistency' @DuplicateType
-      testConsistency' @DuplicateType1
-  where shouldNotFail :: String -> IO () -> IO ()
-        shouldNotFail s io = io `catch` go
-          where go :: SomeException -> IO ()
-                go e = assertFailure $ s ++ ": " ++ show e
+dontCatchGoodType :: TestTree
+dontCatchGoodType = testCase "DuplicateType is consistent" $
+    testConsistency' @DuplicateType
 
-catchBadVersion :: TestTree
-catchBadVersion = shouldFail
-    "Catch bad SafeJSON instance (noVersion)"
+dontCatchGoodType2 :: TestTree
+dontCatchGoodType2 = testCase "DuplicateType0 is consistent" $
+    testConsistency' @DuplicateType0
+
+catchBadKind :: TestTree
+catchBadKind = shouldFail
+    "Catch bad SafeJSON instances (duplicate version)"
+    "Allowed instances with duplicate versions"
+    $ testConsistency' @DuplicateType1
+
+catchBadKind2 :: TestTree
+catchBadKind2 = shouldFail
+    "Catch bad SafeJSON instance (noVersion + extension)"
     "Allowed 'noVersion' with non-(extended_)base 'kind'"
     $ testConsistency' @DuplicateType2
 
-data DuplicateType = DuplicateType Text
+catchBadKind3 :: TestTree
+catchBadKind3 = shouldFail
+    "Catch bad SafeJSON instance (noVersion + extended_extension)"
+    "Allowed 'noVersion' with non-(extended_)base 'kind'"
+    $ testConsistency' @DuplicateType3
 
-data DuplicateType1 = DuplicateType1 Text
+catchBadKind4 :: TestTree
+catchBadKind4 = shouldFail
+    "Catch bad SafeJSON instance (duplicate future version)"
+    "Allowed future type with same version"
+    $ testConsistency' @DuplicateType4
 
-data DuplicateType2 = DuplicateType2 Text
+-- Kind of redundant because of 'catchBadKind', but hey...
+catchBadKind5 :: TestTree
+catchBadKind5 = shouldFail
+    "Catch bad SafeJSON instance (duplicate past version)"
+    "Allowed past type with same version"
+    $ testConsistency' @DuplicateType5
 
-instance FromJSON DuplicateType where
-  parseJSON = withText "DuplicateType" $ pure . DuplicateType
+catchBadKind6 :: TestTree
+catchBadKind6 = shouldFail
+    "Catch bad SafeJSON instance (duplicate versions in chain)"
+    "Allowed past types with same version (this type's version not source of collision)"
+    $ testConsistency' @DuplicateType6
 
-instance ToJSON DuplicateType where
-  toJSON (DuplicateType t) = String t
+--------------------------------------------------------------
+-- Conflicting version numbering / bad kinds
+--------------------------------------------------------------
 
-instance SafeJSON DuplicateType where
-  version = 1
-  kind = base
+#define DUPLICATE(TYPE,VERSION,KIND)             \
+data TYPE = TYPE Text;                           \
+instance FromJSON TYPE where {                   \
+    parseJSON = withText "TYPE" $ pure . TYPE }; \
+instance ToJSON TYPE where {                     \
+    toJSON (TYPE t) = String t };                \
+instance SafeJSON TYPE where {                   \
+  version = VERSION; kind = KIND }
 
-instance FromJSON DuplicateType1 where
-  parseJSON = withText "DuplicateType1" $ pure . DuplicateType1
+#define MIGRATE(TYPE,OLDTYPE)      \
+instance Migrate TYPE where {      \
+  type MigrateFrom TYPE = OLDTYPE; \
+  migrate (OLDTYPE t) = TYPE t }
 
-instance ToJSON DuplicateType1 where
-  toJSON (DuplicateType1 t) = String t
+#define REVERSE(TYPE,NEWTYPE)      \
+instance Migrate (Reverse TYPE) where {      \
+  type MigrateFrom (Reverse TYPE) = NEWTYPE; \
+  migrate (NEWTYPE t) = Reverse $ TYPE t }
 
-instance SafeJSON DuplicateType1 where
-  version = 1
-  kind = extension
+-- Basic type/instance, consistent
+DUPLICATE(DuplicateType,noVersion,base)
 
-instance Migrate DuplicateType1 where
-  type MigrateFrom DuplicateType1 = DuplicateType
-  migrate (DuplicateType t) = DuplicateType1 t
+-- Basic type/instance, consistent
+DUPLICATE(DuplicateType0,1,base)
 
+-- Extending type/instance, inconsistent (duplicate version number)
+DUPLICATE(DuplicateType1,1,extension)
+MIGRATE(DuplicateType1,DuplicateType0)
 
-instance FromJSON DuplicateType2 where
-  parseJSON = withText "DuplicateType2" $ pure . DuplicateType2
+-- Extending type/instance, inconsistent (noVersion + extension)
+DUPLICATE(DuplicateType2,noVersion,extension)
+MIGRATE(DuplicateType2,DuplicateType0)
 
-instance ToJSON DuplicateType2 where
-  toJSON (DuplicateType2 t) = String t
+-- Extending type/instance, inconsistent (noVersion + extended_extension)
+DUPLICATE(DuplicateType3,noVersion,extended_extension)
+MIGRATE(DuplicateType3,DuplicateType0)
+REVERSE(DuplicateType3,DummyDuplicate)
 
-instance SafeJSON DuplicateType2 where
-  version = noVersion
-  kind = extension
+-- This is just here so DuplicateType3 has something to 'MigrateFrom (Reverse a)'
+DUPLICATE(DummyDuplicate,2,extension)
+MIGRATE(DummyDuplicate,DuplicateType3)
 
-instance Migrate DuplicateType2 where
-  type MigrateFrom DuplicateType2 = DuplicateType1
-  migrate (DuplicateType1 t) = DuplicateType2 t
+-- Extended type/instance, inconsistent (future type has duplicate version number)
+DUPLICATE(DuplicateType4,9,extended_base)
+REVERSE(DuplicateType4,DuplicateType5)
+
+-- Extended type/instance, inconsistent (past type has duplicate version number)
+DUPLICATE(DuplicateType5,9,extended_extension)
+MIGRATE(DuplicateType5,DuplicateType4)
+REVERSE(DuplicateType5,DuplicateType6)
+
+-- Extending type/instance, inconsistent (older types have duplicate version numbers)
+DUPLICATE(DuplicateType6,10,extension)
+MIGRATE(DuplicateType6,DuplicateType5)
