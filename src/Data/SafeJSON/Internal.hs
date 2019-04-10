@@ -9,8 +9,18 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-|
+Module      : Data.SafeJSON.Instances
+Copyright   : (c) 2019 Felix Paulusma
+License     : MIT
+Maintainer  : felix.paulusma@gmail.com
+Stability   : experimental
+
+TODO: small explanation, put big one in 'Data.SafeJSON'
+-}
 module Data.SafeJSON.Internal where
 
 
@@ -30,10 +40,17 @@ import Data.Typeable (Typeable, typeRep)
 import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
 
+-- | This is an inpenetrable container. A security measure
+--   used to ensure 'safeFrom' and 'safeTo' are never used
+--   directly. Instead, always use 'safeFromJSON' and
+--   'safeToJSON'.
 newtype Contained a = Contained {unsafeUnpack :: a}
 
+-- | Used when defining 'safeFrom' or 'safeTo'.
 contain :: a -> Contained a
 contain = Contained
+
+
 
 -- TODO: Explain how Version Nothing works.
 
@@ -193,17 +210,29 @@ data Kind a where
   Extends :: Migrate a => Proxy (MigrateFrom a) -> Kind a
   Extended :: Migrate (Reverse a) => Kind a -> Kind a
 
+-- | Used to define 'kind'.
+--   @Base@ types do not extend any type.
 base :: Kind a
 base = Base
 
+-- | Used to define 'kind'.
+--   @Extends@ types extend a previous version.
 extension :: (SafeJSON a, Migrate a) => Kind a
 extension = Extends Proxy
 
-extended_extension :: (SafeJSON a, Migrate a, Migrate (Reverse a)) => Kind a
-extended_extension = Extended extension
-
+-- | Used to define 'kind'.
+--   @Extended Base@ types are extended by a future version
+--   and as such can migrate from that future version.
+--   (cf. 'extended_extension', 'base')
 extended_base :: (SafeJSON a, Migrate (Reverse a)) => Kind a
 extended_base = Extended base
+
+-- | Used to define 'kind'.
+--   @Extended Extends@ types are extended by a future version
+--   and as such can migrate from that future version, but they
+--   also extend a previous version. (cf. 'extended_base', 'extension')
+extended_extension :: (SafeJSON a, Migrate a, Migrate (Reverse a)) => Kind a
+extended_extension = Extended extension
 
 -- The '!' and '~' used in these set fields are chosen for their
 -- low probability of showing up naturally in JSON objects one
@@ -343,27 +372,6 @@ constructParserFromVersion val origVersion origKind =
             reverseProxy :: Proxy (MigrateFrom (Reverse b))
             reverseProxy = Proxy
 
-proxyFromKind :: Kind a -> Proxy a
-proxyFromKind _ = Proxy
-
-proxyFromVersion :: Version a -> Proxy a
-proxyFromVersion _ = Proxy
-
-kindFromProxy :: SafeJSON a => Proxy a -> Kind a
-kindFromProxy _ = kind
-
-kindFromVersion :: SafeJSON a => Version a -> Kind a
-kindFromVersion _ = kind
-
-versionFromProxy :: SafeJSON a => Proxy a -> Version a
-versionFromProxy _ = version
-
-versionFromKind :: SafeJSON a => Kind a -> Version a
-versionFromKind _ = version
-
-getForwardKind :: Migrate (Reverse a) => Kind a -> Kind (MigrateFrom (Reverse a))
-getForwardKind _ = kind
-
 -- | Type name string representation of a nullary type constructor.
 typeName0 :: Typeable a => Proxy a -> String
 typeName0 = show . typeRep
@@ -405,7 +413,8 @@ data ProfileVersions = ProfileVersions {
   } deriving (Eq)
 
 noVersionPresent :: ProfileVersions -> Bool
-noVersionPresent (ProfileVersions c vs) = isNothing c || isJust (Nothing `List.lookup` vs)
+noVersionPresent (ProfileVersions c vs) =
+    isNothing c || isJust (Nothing `List.lookup` vs)
 
 showV :: Maybe Int64 -> String
 showV Nothing  = "null"
@@ -432,11 +441,11 @@ instance Typeable a => Show (Profile a) where
 
 -- | Easy way to get a printable failure/success report
 -- of the internal consistency of a SafeJSON instance.
-mkProfile :: SafeJSON a => Proxy a -> Profile a
+mkProfile :: forall a. SafeJSON a => Proxy a -> Profile a
 mkProfile p = case computeConsistency p of
     NotConsistent t -> InvalidProfile t
     Consistent -> Profile $ ProfileVersions {
-        profileCurrentVersion    = unVersion (versionFromProxy p),
+        profileCurrentVersion    = unVersion (version @a),
         profileSupportedVersions = availableVersions p
       }
 
@@ -449,15 +458,12 @@ checkConsistency p m =
       InvalidProfile s -> fail s
       Profile vs -> m vs
 
-consistentFromProxy :: SafeJSON a => Proxy a -> Consistency a
-consistentFromProxy _ = internalConsistency
-
-computeConsistency :: SafeJSON a => Proxy a -> Consistency a
+computeConsistency :: forall a. SafeJSON a => Proxy a -> Consistency a
 computeConsistency p
 -- This checks the chain of versions to not clash or loop,
 -- and it verifies only 'Base' or 'Extended Base' kinds can
 -- have 'noVersion'
-  | isObviouslyConsistent (kindFromProxy p) = Consistent
+  | isObviouslyConsistent (kind @a) = Consistent
   | Just s <- invalidChain p = NotConsistent s
   | otherwise = Consistent
 {-# INLINE computeConsistency #-}
@@ -466,30 +472,30 @@ isObviouslyConsistent :: Kind a -> Bool
 isObviouslyConsistent Base = True
 isObviouslyConsistent _    = False
 
-availableVersions :: SafeJSON a => Proxy a -> [(Maybe Int64, String)]
-availableVersions p =
-    worker False (kindFromProxy p)
+availableVersions :: forall a. SafeJSON a => Proxy a -> [(Maybe Int64, String)]
+availableVersions _ =
+    worker False (kind @a)
   where
-    worker :: SafeJSON b => Bool -> Kind b -> [(Maybe Int64, String)]
+    worker :: forall b. SafeJSON b => Bool -> Kind b -> [(Maybe Int64, String)]
     worker fwd thisKind = case thisKind of
         Base       -> [tup]
         Extends p' -> tup : worker fwd (kindFromProxy p')
         Extended k | not fwd -> worker True (getForwardKind k)
         Extended k -> worker True k
 
-      where Version v = versionFromKind thisKind
-            name = typeName $ proxyFromKind thisKind
+      where Version v = version @b
+            name = typeName (Proxy @b)
             tup = (v, name)
 
 -- TODO: Have this output a custom type to differentiate between bad outcomes.
 -- That way the tests can be more reliable. (Did they catch what they were
 -- supposed to catch?)
-invalidChain :: SafeJSON a => Proxy a -> Maybe String
-invalidChain a_proxy =
-  worker mempty mempty (kindFromProxy a_proxy)
+invalidChain :: forall a. SafeJSON a => Proxy a -> Maybe String
+invalidChain _ =
+  worker mempty mempty (kind @a)
   where
     --                                Version set            Version set with type name     Kind      Maybe error
-    worker :: forall a. SafeJSON a => S.Set (Maybe Int64) -> S.Set (Maybe Int64, String) -> Kind a -> Maybe String
+    worker :: forall b. SafeJSON b => S.Set (Maybe Int64) -> S.Set (Maybe Int64, String) -> Kind b -> Maybe String
     worker vs vSs k
       | i `S.member` vs = Just $ mconcat
           [ "Double occurence of version number '", showV i
@@ -503,11 +509,31 @@ invalidChain a_proxy =
               [ typeName p, " has defined 'version = noVersion', "
               , " but it's 'kind' definition is not 'base' or 'extended_base'"
               ]
-          Extends b_proxy -> worker newVSet newVsSet (kindFromProxy b_proxy)
+          Extends a_proxy -> worker newVSet newVsSet (kindFromProxy a_proxy)
           Extended a_kind -> let v@(Version i') = versionFromKind $ getForwardKind a_kind
                                  tup = (i', typeName (proxyFromVersion v))
                               in worker (S.insert i' vs) (S.insert tup vSs) a_kind
-      where Version i = version :: Version a
-            p = proxyFromKind k
+      where Version i = version @b
+            p = Proxy @b
             newVSet = S.insert i vs
             newVsSet = S.insert (i, typeName p) vSs
+
+
+----------------------------------------------------------
+-- Conversion functions
+----------------------------------------------------------
+
+proxyFromVersion :: Version a -> Proxy a
+proxyFromVersion _ = Proxy
+
+kindFromProxy :: SafeJSON a => Proxy a -> Kind a
+kindFromProxy _ = kind
+
+versionFromProxy :: SafeJSON a => Proxy a -> Version a
+versionFromProxy _ = version
+
+versionFromKind :: SafeJSON a => Kind a -> Version a
+versionFromKind _ = version
+
+getForwardKind :: Migrate (Reverse a) => Kind a -> Kind (MigrateFrom (Reverse a))
+getForwardKind _ = kind

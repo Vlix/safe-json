@@ -48,7 +48,7 @@ instance Arbitrary Value where
     ]
   shrink = genericShrink
 
--- | This is here just to test Sets, mostly
+-- | This is here just to test 'Set' in 'parseCollection'
 instance Ord Value where
   Null `compare` Null = EQ
   Null `compare` _    = LT

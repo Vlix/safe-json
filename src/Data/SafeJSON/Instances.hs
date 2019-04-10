@@ -6,6 +6,27 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-|
+Module      : Data.SafeJSON.Instances
+Copyright   : (c) 2019 Felix Paulusma
+License     : MIT
+Maintainer  : felix.paulusma@gmail.com
+Stability   : experimental
+
+This module contains 'SafeJSON' instances for almost
+all types that 'Data.Aeson' has 'Data.Aeson.FromJSON'
+and 'Data.Aeson.ToJSON' instances for. These instances
+are all defined with 'noVersion' and 'base', since
+these types should never get a version wrapper, should
+use the existing 'Data.Aeson' instances and do not extend
+any other type.
+
+All these types are extendable if need be. Just use
+any of these types in the definition of your 'Migrate'
+instance.
+
+(e.g. @type MigrateFrom MyType = Int@)
+-}
 module Data.SafeJSON.Instances (SafeJSON(..)) where
 
 

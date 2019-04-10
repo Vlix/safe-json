@@ -1,5 +1,5 @@
 module Data.SafeJSON
-    ( -- * SafeJSON Instance
+    ( -- * SafeJSON Class
       SafeJSON(version, kind, safeTo, safeFrom, objectProfile, typeName)
     , contain
     , safeToJSON
