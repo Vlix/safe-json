@@ -31,8 +31,8 @@ oldNewTypeChecks :: TestTree
 oldNewTypeChecks = testGroup "Consistent Old-/NewType"
     [ testCase "OldType is consistent" $ testConsistency' @OldType
     , testCase "NewType is consistent" $ testConsistency' @NewType
-    , testRoundTripProp @OldType "Round trip (OldType)"
-    , testRoundTripProp @NewType "Round trip (NewType)"
+    , testRoundTripProp' @OldType "Round trip (OldType)"
+    , testRoundTripProp' @NewType "Round trip (NewType)"
     ]
 
 roundTripTest :: TestTree
@@ -48,10 +48,10 @@ reverseRoundTripTest = testCase "Reverse round trip function test" $ do
     migrateReverseRoundTrip @OldType newType
 
 roundTripTestProp :: TestTree
-roundTripTestProp = migrateRoundTripProp @NewType @OldType "Round trip property function test"
+roundTripTestProp = migrateRoundTripProp' @NewType @OldType "Round trip property function test"
 
 reverseRoundTripTestProp :: TestTree
-reverseRoundTripTestProp = migrateReverseRoundTripProp @OldType @NewType "Reverse round trip property function test"
+reverseRoundTripTestProp = migrateReverseRoundTripProp' @OldType @NewType "Reverse round trip property function test"
 
 
 ----------------------------------------------------------

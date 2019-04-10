@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Instances (
-  module Test.QuickCheck.Instances
-  , DotNetTime()
+    DotNetTime()
   , DList()
   , VP.Vector()
   , Value()
@@ -18,11 +17,6 @@ import qualified Data.Vector.Primitive as VP
 import Test.Tasty.QuickCheck (Arbitrary(..), oneof, resize)
 import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances()
-
--- instance Eq ZonedTime where
-  -- zt1 == zt2 =
-      -- zonedTimeToLocalTime zt1 == zonedTimeToLocalTime zt2
-      -- && zonedTimeZone zt1 == zonedTimeZone zt2
 
 instance Arbitrary DotNetTime where
   arbitrary = do

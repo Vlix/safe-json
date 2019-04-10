@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 module MigrationTests where
 
 
@@ -12,10 +13,9 @@ import Control.Exception (try)
 import Control.Monad (forM)
 import Data.Aeson hiding (eitherDecodeFileStrict)
 import Data.Aeson as A (decodeFileStrict)
-import Data.Aeson.Types (Parser, parseEither)
+import Data.Aeson.Types (parseEither)
 import Data.DList (DList)
 import Data.Functor.Identity (Identity)
-import Data.Hashable (Hashable(..))
 import Data.HashMap.Strict (HashMap)
 import Data.HashSet (HashSet)
 import Data.IntMap as IntMap (IntMap, fromList)
@@ -90,6 +90,7 @@ migrationTests = testGroup "Migrations"
     , parseCollection @HashSet    @Version4 "HashSet v4"  allVersioned singleList
     , parseCollection @Seq        @Version4 "Seq v4"      allVersioned singleList
 
+    , parseCollection @Maybe      @Version4 "Maybe v4"    allVersioned single
     , parseCollection @Identity   @Version4 "Identity v4" allVersioned single
     , parseCollection @(Const Version4) @Version4 "Const v4" allVersioned single
     , parseCollection @First      @Version4 "First v4"    allVersioned single
@@ -135,7 +136,7 @@ mkTup5 (x:y:z:a:b:_) = (x,y,z,a,b)
 ----------------------------------------------------------
 
 versionedPrimRoundTrip :: TestTree
-versionedPrimRoundTrip = testRoundTripProp @VersionedPrim "Round trip (VersionedPrim)"
+versionedPrimRoundTrip = testRoundTripProp' @VersionedPrim "Round trip (VersionedPrim)"
 
 newtype VersionedPrim = VersionedPrim { unVersionedPrim :: Text } deriving (Eq, Show)
 
@@ -215,6 +216,3 @@ parseCollectionFail = parseCollection' @f @a go
         go io = try io >>= \case
             Left e -> return () `const` (e :: HUnitFailure)
             Right{} -> assertFailure "Should have failed"
-
-instance Hashable Version4 where
-  hashWithSalt i = hashWithSalt i . encode

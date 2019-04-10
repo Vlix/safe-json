@@ -6,6 +6,7 @@ module Types where
 import Control.Monad (when)
 import Data.Aeson
 import Data.Aeson.Types (Parser)
+import Data.Hashable (Hashable(..))
 import Data.Maybe (isJust)
 import Data.Text as T
 import Data.Time (UTCTime)
@@ -170,3 +171,7 @@ data BadVersion = BadVersion Text deriving (Eq, Show)
 instance FromJSON BadVersion where parseJSON = withText "BadVersion" $ pure . BadVersion
 instance ToJSON   BadVersion where toJSON (BadVersion t) = String t
 instance SafeJSON BadVersion where version = 8
+
+-- Used for the HashSet migration test
+instance Hashable Version4 where
+  hashWithSalt i = hashWithSalt i . encode
