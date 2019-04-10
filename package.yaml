@@ -61,5 +61,6 @@ tests:
     - tasty-hunit
     - tasty-quickcheck
     - temporary
+    - uuid
     default-extensions:
       - OverloadedStrings

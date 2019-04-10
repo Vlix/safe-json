@@ -7,9 +7,10 @@ import Control.Monad (when)
 import Data.Aeson
 import Data.Aeson.Types (Parser)
 import Data.Maybe (isJust)
-import Data.Text (Text, intercalate, pack)
+import Data.Text as T
 import Data.Time (UTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
+import Data.UUID as UUID
 
 import Data.SafeJSON
 
@@ -116,7 +117,7 @@ instance Migrate (Reverse Version3) where
 data Version4 = Version4 {
   v4texts :: [Text],
   v4TimeClosed :: Maybe UTCTime
-} deriving (Eq, Show)
+} deriving (Eq, Show, Ord)
 
 instance SafeJSON Version4 where version = 4; kind = extension
 
@@ -137,3 +138,35 @@ instance Migrate Version4 where
   type MigrateFrom Version4 = Version3
   migrate (Version3 ts b) = Version4 ts time
     where time = if b then Just (posixSecondsToUTCTime 0) else Nothing
+
+----------------------------------------------------------
+-- Simple Version
+----------------------------------------------------------
+
+data SimpleVersion1 = SimpleVersion1 {
+  s1UUID :: UUID,
+  s1Name :: Text
+} deriving (Eq, Show)
+
+instance FromJSON SimpleVersion1 where
+  parseJSON = withText "SimpleVersion1" $ \t ->
+      let (ident,name) = T.span (/= ':') t
+      in case UUID.fromText ident of
+          Nothing -> fail "non-UUID prefix"
+          Just uuid -> pure $ SimpleVersion1 uuid $ T.drop 1 name
+
+instance ToJSON SimpleVersion1 where
+  toJSON (SimpleVersion1 uuid name) = String $ UUID.toText uuid <> ":" <> name
+
+instance SafeJSON SimpleVersion1 where
+  version = 1
+  kind = extension
+
+instance Migrate SimpleVersion1 where
+  type MigrateFrom SimpleVersion1 = UUID
+  migrate uuid = SimpleVersion1 uuid ""
+
+data BadVersion = BadVersion Text deriving (Eq, Show)
+instance FromJSON BadVersion where parseJSON = withText "BadVersion" $ pure . BadVersion
+instance ToJSON   BadVersion where toJSON (BadVersion t) = String t
+instance SafeJSON BadVersion where version = 8

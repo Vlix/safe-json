@@ -53,3 +53,23 @@ instance Arbitrary Value where
     , pure Null
     ]
   shrink = genericShrink
+
+-- | This is here just to test Sets, mostly
+instance Ord Value where
+  Null `compare` Null = EQ
+  Null `compare` _    = LT
+  _    `compare` Null = GT
+  a `compare` b
+    | Bool   a' <- a, Bool   b' <- b = a' `compare` b'
+    | Number a' <- a, Number b' <- b = a' `compare` b'
+    | String a' <- a, String b' <- b = a' `compare` b'
+    | Array  a' <- a, Array  b' <- b = a' `compare` b'
+    | Object a' <- a, Object b' <- b = a' `compare` b'
+  Bool{}   `compare` _      = LT
+  Number{} `compare` Bool{} = GT
+  Number{} `compare` _      = LT
+  String{} `compare` Bool{}   = GT
+  String{} `compare` Number{} = GT
+  String{} `compare` _        = LT
+  Array{}  `compare` Object{} = LT
+  _        `compare` _        = GT
