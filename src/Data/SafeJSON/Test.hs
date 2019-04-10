@@ -61,7 +61,7 @@ import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral, testProperty)
 --
 --   @testConsistency \@MyType Proxy@
 testConsistency :: forall a. SafeJSON a => Proxy a -> Assertion
-testConsistency = flip checkConsistency $ return ()
+testConsistency = flip checkConsistency $ \_ -> return ()
 
 -- | /(with @TypeApplication@ pragma)/
 --   Useful in test suites. Will fail if anything in the
@@ -71,7 +71,7 @@ testConsistency = flip checkConsistency $ return ()
 --
 --   @testConsistency \@MyType@
 testConsistency' :: forall a. SafeJSON a => Assertion
-testConsistency' = checkConsistency p $ return ()
+testConsistency' = checkConsistency p $ \_ -> return ()
   where p = Proxy :: Proxy a
 
 -- | Tests that the following holds:

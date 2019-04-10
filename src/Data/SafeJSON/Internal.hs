@@ -21,8 +21,8 @@ import Data.Aeson
 import Data.Aeson.Types (Parser)
 import Data.HashMap.Strict as HM (insert, size)
 import Data.Int
-import qualified Data.List as List (intercalate)
-import Data.Maybe (fromMaybe)
+import qualified Data.List as List (intercalate, lookup)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.Proxy
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -230,31 +230,34 @@ safeToJSON a = case thisKind of
 --   the consistency of the 'SafeJSON' instance in question,
 --   since checkConsistency is
 safeFromJSON :: forall a. SafeJSON a => Value -> Parser a
-safeFromJSON origVal = checkConsistency p $
+safeFromJSON origVal = checkConsistency p $ \vs ->
     case origKind of
       Base       | i == Nothing -> unsafeUnpack $ safeFrom origVal
-      Extended k | i == Nothing -> extendedCase k
-      _ -> regularCase
+      Extended k | i == Nothing -> extendedCase vs k
+      _ -> regularCase vs
   where Version i = version :: Version a
         origKind = kind :: Kind a
         p = Proxy :: Proxy a
         safejsonErr s = fail $ "safejson: " ++ s
 
-        regularCase = case origVal of
+        regularCase vs = case origVal of
             Object o -> do
-                (mVal, v) <- firstTry o <|> secondTry o <|> pure (Nothing, noVersion)
+                (mVal, v) <- tryIt o
                 let val = fromMaybe origVal mVal
                 withVersion v val origKind
             _ -> withoutVersion <|> safejsonErr ("unparsable JSON value (not an object): " ++ typeName p)
           where withoutVersion = withVersion noVersion origVal origKind
+                tryIt o
+                  | noVersionPresent vs = firstTry o <|> secondTry o <|> pure (Nothing, noVersion)
+                  | otherwise = firstTry o <|> secondTry o
 
         -- This only runs if the SafeJSON being tried has 'kind' of 'extended_*'
         -- and the version is 'noVersion'.
         -- (internalConsistency checks that it should be an 'Extended Base' since it has 'noVersion')
         -- We check the newer version first, since it's better to try to find the
         -- version, if there is one, to guarantee the right parser.
-        extendedCase :: Migrate (Reverse a) => Kind a -> Parser a
-        extendedCase k = case k of { Base -> go; _ -> regularCase }
+        extendedCase :: Migrate (Reverse a) => ProfileVersions -> Kind a -> Parser a
+        extendedCase vs k = case k of { Base -> go; _ -> regularCase vs }
           where go = case origVal of
                         Object o -> tryNew o <|> tryOrig
                         _ -> tryOrig
@@ -268,10 +271,8 @@ safeFromJSON origVal = checkConsistency p $
                 tryOrig = unsafeUnpack $ safeFrom origVal
 
         withVersion :: forall b. SafeJSON b => Version b -> Value ->  Kind b -> Parser b
-        withVersion v val k = either parseErr id eResult
+        withVersion v val k = either fail id eResult
           where eResult = constructParserFromVersion val v k
-                parseErr e = safejsonErr $ mconcat
-                    ["couldn't parse with found version (", show v, "): ", e]
 
         firstTry o = do
             v <- o .: versionField
@@ -282,7 +283,7 @@ safeFromJSON origVal = checkConsistency p $
             -- This is an extra counter measure against false parsing.
             -- The simple data object should contain exactly the
             -- (~v) and (~d) fields
-            when (HM.size o /= 2) $ fail "not simple data"
+            when (HM.size o /= 2) $ fail $ "malformed simple data (" ++ show (Version $ Just v) ++ ")"
             return (Just bd, Version $ Just v)
 
 -- This takes the version number found (or Nothing) and tries find the type in
@@ -296,8 +297,8 @@ constructParserFromVersion val origVersion origKind =
     worker fwd thisVersion thisKind
       | version == thisVersion = return $ unsafeUnpack $ safeFrom val
       | otherwise = case thisKind of
-          Base          -> Left errorMsg
-          Extended Base -> Left errorMsg
+          Base          -> Left versionNotFound
+          Extended Base -> Left versionNotFound
           Extends p     -> fmap migrate <$> worker fwd (castVersion thisVersion) (kindFromProxy p)
           Extended k    -> do
               -- Technically, the forward and backward parsing could be
@@ -331,7 +332,6 @@ constructParserFromVersion val origVersion origKind =
                 then previousParser
                 else either (const previousParser) Right forwardParser
       where versionNotFound = "Cannot find parser associated with: " <> show origVersion
-            errorMsg = mconcat ["safejson: ", typeName (Proxy :: Proxy b), ": ", versionNotFound]
             reverseProxy :: Proxy (MigrateFrom (Reverse b))
             reverseProxy = Proxy
 
@@ -396,6 +396,9 @@ data ProfileVersions = ProfileVersions {
     profileSupportedVersions :: [(Maybe Int64, String)]
   } deriving (Eq)
 
+noVersionPresent :: ProfileVersions -> Bool
+noVersionPresent (ProfileVersions c vs) = isNothing c || isJust (Nothing `List.lookup` vs)
+
 showV :: Maybe Int64 -> String
 showV Nothing  = "null"
 showV (Just i) = show i
@@ -432,11 +435,11 @@ mkProfile p = case computeConsistency p of
 data Consistency a = Consistent
                    | NotConsistent String
 
-checkConsistency :: (SafeJSON a, MonadFail m) => Proxy a -> m b -> m b
+checkConsistency :: (SafeJSON a, MonadFail m) => Proxy a -> (ProfileVersions -> m b) -> m b
 checkConsistency p m =
-    case consistentFromProxy p of
-      NotConsistent s -> fail s
-      Consistent      -> m
+    case mkProfile p of
+      InvalidProfile s -> fail s
+      Profile vs -> m vs
 
 consistentFromProxy :: SafeJSON a => Proxy a -> Consistency a
 consistentFromProxy _ = internalConsistency
