@@ -10,7 +10,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
--- {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 module Data.SafeJSON.Internal where
 
 
@@ -27,6 +27,7 @@ import Data.Proxy
 import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeRep)
+import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
 
 newtype Contained a = Contained {unsafeUnpack :: a}
@@ -156,6 +157,13 @@ instance Num (Version a) where
 toZ, toZ' :: Num i => Maybe i -> i
 toZ  = fromMaybe $ fromInteger 0
 toZ' = fromMaybe $ fromInteger 1
+
+-- | This instance explicitly doesn't consider 'noVersion', since it
+-- is an exception in almost every sense.
+instance Arbitrary (Version a) where
+  arbitrary = Version . Just <$> arbitrary
+  shrink (Version Nothing) = []
+  shrink (Version (Just a)) = Version . Just <$> shrinkIntegral a
 
 castVersion :: Version a -> Version b
 castVersion (Version i) = Version i
