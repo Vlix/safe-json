@@ -19,11 +19,11 @@ main = Tasty.defaultMain tests
 
 tests :: TestTree
 tests = testGroup "\nSafeJSON"
-    [ {-numTest (Proxy :: Proxy (Version a))
+    [ numTest (Proxy :: Proxy (Version a))
     , primitiveTests
     , consistencyTests
     , encodeDecodeTests
-    ,-} migrationTests
+    , migrationTests
     ]
 
 
@@ -51,11 +51,9 @@ Needed to be tested:
     V  - encode <-> decode
     V  - encodeFile <-> decodeFile (withTempFile)
 
-- [] Migration tests to be done:
-    [] - should migrate from 3-4 versions back
-    [] - should migrate from 1 version forward
-    [] - container-like types should handle different versions:
+- V  Migration tests to be done:
+    V  - should migrate from 3-4 versions back
+    V  - should migrate from 1 version forward
+    V  - container-like types should handle different versions:
          SafeJSON a => [a] should be able to handle different versions of 'a'
-
-
 -}
