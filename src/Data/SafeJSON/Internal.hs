@@ -183,9 +183,12 @@ newtype Version a = Version {unVersion :: Maybe Int64}
 -- | This is used for types that don't have
 --   a version tag.
 --
---   This is used for primitive values, like
---   'Int', 'Text', @[a]@, etc.
---   But also when implementing 'SafeJSON' after the fact.
+--   This is used for primitive values that are tagged with
+--   a version number, like 'Int', 'Text', @[a]@, etc.
+--
+--   But also when implementing 'SafeJSON' after the fact,
+--   when a format is already in use, but you still want to
+--   be able to 'migrate' from it to a newer type or format.
 --
 --   /N.B./ @version = noVersion@ /is distinctively different/
 --   /from/ @version = 0@/, which will add a version tag with/
@@ -202,9 +205,9 @@ liftV _ _ Nothing Nothing = Nothing
 liftV i f ma mb = Just $ toZ ma `f` toZ mb
   where toZ = fromMaybe $ fromInteger i
 
--- Nothing is handled as if it's mempty... mostly.
+-- 'Version Nothing' is handled as if it's mempty... mostly.
 -- | It is strongly discouraged to use any methods other
---   than 'fromInteger' of 'Version''s 'Num' instance.
+--   than 'fromInteger' of 'Version' 's 'Num' instance.
 instance Num (Version a) where
   Version ma + Version mb = Version $ liftV 0 (+) ma mb
   Version ma - Version mb = Version $ liftV 0 (-) ma mb
@@ -230,7 +233,7 @@ castVersion (Version i) = Version i
 --   received by old-format expecting programs.
 newtype Reverse a = Reverse { unReverse :: a }
 
--- | The kind of a data type determines how it can be migrated to.
+-- | The 'kind' of a 'SafeJSON' type determines how it can be migrated to.
 data Kind a where
   Base :: Kind a
   Extends :: Migrate a => Proxy (MigrateFrom a) -> Kind a
@@ -386,6 +389,11 @@ constructParserFromVersion val origVersion origKind =
               --
               -- I've opted for the following approach:
               -- "Try forward once, if the version is wrong, go down your own chain"
+              --
+              -- IDEA: Maybe it could be written in such a way that the backward type
+              -- (Base or Extends) in the Extended data constructor is passed along on
+              -- up the chain until the top is reached, after which the run downward
+              -- starts with Extends, or the run ends in case it was a Base type.
               let forwardParser :: Either String (Parser b)
                   forwardParser = do
                       if castVersion thisVersion /= versionFromProxy reverseProxy

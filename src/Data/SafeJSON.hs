@@ -1,11 +1,28 @@
 module Data.SafeJSON
-    ( -- * SafeJSON Class
-      SafeJSON(version, kind, safeTo, safeFrom, objectProfile, typeName)
+    (
+    -- * Conversion to/from versioned JSON
+    --
+    -- | These functions are the workhorses of the library.
+    --
+    --   As long as a type has a 'SafeJSON' instance and, if conversion
+    --   from other types is required, a 'Migrate' instance, these will
+    --   make sure to add and read version numbers, and handle migration.
+      safeToJSON
+    , safeFromJSON
+    -- * SafeJSON Class
+    --
+    -- | This class, together with 'Migrate', is where the magic happens!
+    --
+    --   Using the 'SafeJSON' class to define the form and expected
+    --   migration to a type, and defining 'Migrate' instances to describe
+    --   how to handle the conversion from older versions (or maybe a
+    --   newer version) to the type, you can be sure that your programs
+    --   will still parse the JSON of types it is expecting.
+    , SafeJSON(version, kind, safeTo, safeFrom, objectProfile, typeName)
+    -- *** Contained
     , Contained
     , contain
-    , safeToJSON
-    , safeFromJSON
-    -- * Version
+    -- ** Version
     --
     -- | All 'SafeJSON' instances have a 'version'. This version will be
     --   attached to the JSON format and used to figure out which parser
@@ -13,7 +30,7 @@ module Data.SafeJSON
     --   the given JSON.
     , Version
     , noVersion
-    -- * Kind
+    -- ** Kind
     --
     -- | All 'SafeJSON' instance have a declared 'kind', indicating if any
     --   migration needs to happen when parsing using 'safeFromJSON'.
@@ -39,7 +56,7 @@ module Data.SafeJSON
     , extension
     , extended_base
     , extended_extension
-    -- ** Showing the type
+    -- *** Showing the type
     --
     -- These helper functions can easily be used in the
     -- definition of 'typeName'. As long as the type
@@ -50,7 +67,7 @@ module Data.SafeJSON
     , typeName3
     , typeName4
     , typeName5
-    -- * Testing
+    -- ** Testing
     , Profile(..)
     , ProfileVersions(..)
     -- * Migration
