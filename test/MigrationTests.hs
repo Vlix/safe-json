@@ -136,7 +136,7 @@ mkTup5 (x:y:z:a:b:_) = (x,y,z,a,b)
 ----------------------------------------------------------
 
 versionedPrimRoundTrip :: TestTree
-versionedPrimRoundTrip = testRoundTripProp' @VersionedPrim "Round trip (VersionedPrim)"
+versionedPrimRoundTrip = testRoundTripProp @VersionedPrim "Round trip (VersionedPrim)"
 
 newtype VersionedPrim = VersionedPrim { unVersionedPrim :: Text } deriving (Eq, Show)
 

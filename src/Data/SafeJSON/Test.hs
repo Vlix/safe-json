@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -15,19 +16,22 @@ This module contains some functions to use for testing
 module Data.SafeJSON.Test (
   -- * Consistency checks
   --
-  -- It is advised to always run one of the @testConsistency@
-  -- tests for all your types that have 'SafeJSON' instances.
-  -- Note that any type that fails this test will also fail
-  -- any 'safeFromJSON' parsing!
+  -- | It is advised to always run one of the @testConsistency@
+  --   tests for all your types that have 'SafeJSON' instances.
+  --
+  --   Note that any type that fails this test will also fail
+  --   any 'safeFromJSON' parsing!
+
+  -- ** Using TypeApplications
     testConsistency
+  -- ** Using a Proxy argument
   , testConsistency'
-  , Proxy(..)
   -- * Unit tests
   --
   -- ** Migration tests
   --
-  -- These tests can be used to verify the implemented
-  -- 'migrate' function acts as expected.
+  -- | These tests can be used to verify the implemented
+  --   'migrate' function acts as expected.
   , testMigration
   , testReverseMigration
   -- *** Synonyms
@@ -35,22 +39,31 @@ module Data.SafeJSON.Test (
   , (<=?)
   -- ** Round trip tests
   --
-  -- These tests can be used to verify that round trips are
-  -- consistent. Either directly ('testRoundTrip'), through
-  -- a forward migration (migrateRoundTrip) or a reversed
-  -- backward migration (migrateReverseRoundTrip).
+  -- | These tests can be used to verify that round trips are
+  --   consistent. Either directly ('testRoundTrip'), through
+  --   a forward migration ('migrateRoundTrip') or a reversed
+  --   backward migration ('migrateReverseRoundTrip').
   , testRoundTrip
   , migrateRoundTrip
   , migrateReverseRoundTrip
   -- * Property tests
   --
-  -- Useful if your types also have 'Arbitrary' instances.
+  -- | Useful if your types also have 'Arbitrary' instances.
+
+  -- *** Constraint synonyms for readability
+  --
+  , TestMigrate
+  , TestReverseMigrate
+  -- ** Using TypeApplications
   , testRoundTripProp
-  , testRoundTripProp'
   , migrateRoundTripProp
-  , migrateRoundTripProp'
   , migrateReverseRoundTripProp
+  -- ** Using a Proxy argument
+  , testRoundTripProp'
+  , migrateRoundTripProp'
   , migrateReverseRoundTripProp'
+  -- * Re-export for convenience
+  , Proxy(..)
   ) where
 
 
@@ -62,56 +75,44 @@ import Test.Tasty.HUnit (Assertion, assertEqual)
 import Test.Tasty.QuickCheck (Arbitrary, testProperty)
 
 
--- | /(without @TypeApplication@ pragma)/
---   Useful in test suites. Will fail if anything in the
+-- | Useful in test suites. Will fail if anything in the
 --   chain of your types is inconsistent.
 --
---   Example usage:
+--   === __Example usage:__
 --
---   @testConsistency (Proxy :: Proxy MyType)@
-testConsistency :: forall a. SafeJSON a => Proxy a -> Assertion
-testConsistency = flip checkConsistency $ \_ -> return ()
-
--- | /(with @TypeApplication@ pragma)/
---   Useful in test suites. Will fail if anything in the
---   chain of your types is inconsistent.
---
---   Example usage:
---
---   @testConsistency \@MyType@
-testConsistency' :: forall a. SafeJSON a => Assertion
-testConsistency' = checkConsistency p $ \_ -> return ()
+-- > testConsistency @MyType
+testConsistency :: forall a. SafeJSON a => Assertion
+testConsistency = checkConsistency p $ \_ -> return ()
   where p = Proxy :: Proxy a
+
+-- | Useful in test suites. Will fail if anything in the
+--   chain of your types is inconsistent.
+testConsistency' :: forall a. SafeJSON a => Proxy a -> Assertion
+testConsistency' = flip checkConsistency $ \_ -> return ()
 
 -- | Tests that the following holds:
 --
---   @a == (safeFromJSON . safeToJSON) a
+--   prop> Just a == parseMaybe (safeFromJSON . safeToJSON) a
 testRoundTrip :: (Show a, Eq a, SafeJSON a) => a -> Assertion
 testRoundTrip a = "To JSON and back not consistent" `assertEqual` Right a $
     parseEither (safeFromJSON . safeToJSON) a
 
--- | /(without @TypeApplication@ pragma)/
---   Tests that the following holds for all @a@:
+-- | Tests that the following holds __for all @a@__:
 --
---   @testProperty s $ \a -> a == (safeFromJSON . safeToJSON) a@
---
---   Example usage:
---
---   @testRoundTripProp (Proxy :: Proxy MyType) s@
-testRoundTripProp :: forall a. (Eq a, Show a, Arbitrary a, SafeJSON a) => Proxy a -> String -> TestTree
-testRoundTripProp _ s = testProperty s $ \a ->
+--   prop> Just a == parseMaybe (safeFromJSON . safeToJSON) a
+testRoundTripProp' :: forall a. (Eq a, Show a, Arbitrary a, SafeJSON a) => Proxy a -> String -> TestTree
+testRoundTripProp' _ s = testProperty s $ \a ->
     Right (a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
--- | /(with @TypeApplication@ pragma)/
---   Tests that the following holds for all @a@:
+-- | Tests that the following holds for all @a@:
 --
---   @testProperty s $ \a -> a == (safeFromJSON . safeToJSON) a@
+--   prop> Just a == parseMaybe (safeFromJSON . safeToJSON) a
 --
---   Example usage:
+--   === __Example usage:__
 --
---   @testRoundTripProp' @MyType s@
-testRoundTripProp' :: forall a. (Eq a, Show a, Arbitrary a, SafeJSON a) => String -> TestTree
-testRoundTripProp' s = testProperty s $ \a ->
+-- > testRoundTripProp @MyType s
+testRoundTripProp :: forall a. (Eq a, Show a, Arbitrary a, SafeJSON a) => String -> TestTree
+testRoundTripProp s = testProperty s $ \a ->
     Right (a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
 -- | Migration test. Mostly useful as regression test.
@@ -149,84 +150,63 @@ migrateReverseRoundTrip :: forall a. (Eq a, Show a, SafeJSON a, Migrate (Reverse
 migrateReverseRoundTrip newType = "Unexpected result of decoding encoded newer type" `assertEqual` Right (unReverse $ migrate newType :: a) $
     parseEither (safeFromJSON . safeToJSON) newType
 
--- | /(without @TypeApplication@ pragma)/
---   This test verifies that direct migration, and migration
+type TestMigrate a b = ( Eq a
+                       , Show (MigrateFrom a)
+                       , Arbitrary (MigrateFrom a)
+                       , SafeJSON a
+                       , SafeJSON (MigrateFrom a)
+                       , Migrate a
+                       , MigrateFrom a ~ b
+                       )
+
+-- | This test verifies that direct migration, and migration
 --   through encoding and decoding to the newer type, is equivalent
---   for all @a@.
+--   __for all @a@__.
 --
---   Example usage:
---
---   @migrateRoundTripProp (Proxy :: Proxy (NewType,OldType)) s@
-migrateRoundTripProp :: forall a b.
-                        ( Eq a
-                        , Show (MigrateFrom a)
-                        , Arbitrary (MigrateFrom a)
-                        , SafeJSON a
-                        , SafeJSON (MigrateFrom a)
-                        , Migrate a
-                        , MigrateFrom a ~ b
-                        )
-                     => Proxy (a,b) -> String -> TestTree
-migrateRoundTripProp _ s = testProperty s $ \a ->
+--   prop> Just (migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
+migrateRoundTripProp' :: forall a b. TestMigrate a b => Proxy (a,b) -> String -> TestTree
+migrateRoundTripProp' _ s = testProperty s $ \a ->
     Right (migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
--- | /(with @TypeApplication@ pragma)/
---   This test verifies that direct migration, and migration
+-- | This test verifies that direct migration, and migration
 --   through encoding and decoding to the newer type, is equivalent
---   for all @a@.
+--   __for all @a@__.
 --
---   Example usage:
+--   prop> Just (migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
 --
---   @migrateRoundTripProp' @NewType @OldType s@
-migrateRoundTripProp' :: forall a b.
-                         ( Eq a
-                         , Show (MigrateFrom a)
-                         , Arbitrary (MigrateFrom a)
-                         , SafeJSON a
-                         , SafeJSON (MigrateFrom a)
-                         , Migrate a
-                         , MigrateFrom a ~ b
-                         )
-                      => String -> TestTree
-migrateRoundTripProp' s = testProperty s $ \a ->
+--   === __Example usage:__
+--
+-- > migrateRoundTripProp @NewType @OldType s
+migrateRoundTripProp :: forall a b. TestMigrate a b => String -> TestTree
+migrateRoundTripProp s = testProperty s $ \a ->
     Right (migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
--- | /(with @TypeApplication@ pragma)/
---   Similar to 'migrateRoundTripProp', but tests the migration from a newer type
+type TestReverseMigrate a b = ( Eq a
+                              , Show (MigrateFrom (Reverse a))
+                              , Arbitrary (MigrateFrom (Reverse a))
+                              , SafeJSON a
+                              , Migrate (Reverse a)
+                              , MigrateFrom (Reverse a) ~ b
+                              )
+
+-- | Similar to 'migrateRoundTripProp, but tests the migration from a newer type
 --   to the older type, in case of a @Migrate (Reverse a)@ instance.
---   Please also note the reversing of the type applications.
 --
---   Example usage:
---
---   @migrateReverseRoundTripProp (Proxy :: Proxy (OldType,NewType)) s@
-migrateReverseRoundTripProp :: forall a b.
-                               ( Eq a
-                               , Show (MigrateFrom (Reverse a))
-                               , Arbitrary (MigrateFrom (Reverse a))
-                               , SafeJSON a
-                               , Migrate (Reverse a)
-                               , MigrateFrom (Reverse a) ~ b
-                               )
-                            => Proxy (a,b) -> String -> TestTree
-migrateReverseRoundTripProp _ s = testProperty s $ \a ->
+--   prop> Just (unReverse $ migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
+migrateReverseRoundTripProp' :: forall a b. TestReverseMigrate a b => Proxy (a,b) -> String -> TestTree
+migrateReverseRoundTripProp' _ s = testProperty s $ \a ->
     Right (unReverse $ migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
--- | /(with @TypeApplication@ pragma)/
---   Similar to 'migrateRoundTripProp'', but tests the migration from a newer type
+-- | Similar to 'migrateRoundTripProp', but tests the migration from a newer type
 --   to the older type, in case of a @Migrate (Reverse a)@ instance.
---   Please also note the reversing of the type applications.
 --
---   Example usage:
+--   prop> Just (unReverse $ migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
 --
---   @migrateReverseRoundTripProp' @OldType @NewType s@
-migrateReverseRoundTripProp' :: forall a b.
-                                ( Eq a
-                                , Show (MigrateFrom (Reverse a))
-                                , Arbitrary (MigrateFrom (Reverse a))
-                                , SafeJSON a
-                                , Migrate (Reverse a)
-                                , MigrateFrom (Reverse a) ~ b
-                                )
-                             => String -> TestTree
-migrateReverseRoundTripProp' s = testProperty s $ \a ->
+--   === __Example usage:__
+--
+--   /Please also note the reversing of the type applications./
+--
+-- > migrateReverseRoundTripProp @OldType @NewType s
+migrateReverseRoundTripProp :: forall a b. TestReverseMigrate a b => String -> TestTree
+migrateReverseRoundTripProp s = testProperty s $ \a ->
     Right (unReverse $ migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a

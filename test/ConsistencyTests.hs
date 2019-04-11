@@ -16,7 +16,7 @@ import Test.Tasty.HUnit
 import Consistency.Primitives (primitiveConsistency)
 import Consistency.Migrations (migrationConsistency)
 import Data.SafeJSON
-import Data.SafeJSON.Test (testConsistency', testRoundTrip)
+import Data.SafeJSON.Test (testConsistency, testRoundTrip)
 
 
 -- FIXME: Better testing would be possible with specific Exceptions
@@ -60,7 +60,7 @@ catchLoops :: TestTree
 catchLoops = shouldFail
     "Catch looping instances (checkConsistency)"
     "Didn't catch looping instance"
-    $ testConsistency' @LoopType1
+    $ testConsistency @LoopType1
 
 
 data LoopType1 = LoopType1 deriving (Eq, Show)
@@ -131,48 +131,48 @@ instance SafeJSON BadJSON where
 
 dontCatchGoodType :: TestTree
 dontCatchGoodType = testCase "DuplicateType is consistent" $
-    testConsistency' @DuplicateType
+    testConsistency @DuplicateType
 
 dontCatchGoodType2 :: TestTree
 dontCatchGoodType2 = testCase "DuplicateType0 is consistent" $
-    testConsistency' @DuplicateType0
+    testConsistency @DuplicateType0
 
 catchBadKind :: TestTree
 catchBadKind = shouldFail
     "Catch bad SafeJSON instances (duplicate version)"
     "Allowed instances with duplicate versions"
-    $ testConsistency' @DuplicateType1
+    $ testConsistency @DuplicateType1
 
 catchBadKind2 :: TestTree
 catchBadKind2 = shouldFail
     "Catch bad SafeJSON instance (noVersion + extension)"
     "Allowed 'noVersion' with non-(extended_)base 'kind'"
-    $ testConsistency' @DuplicateType2
+    $ testConsistency @DuplicateType2
 
 catchBadKind3 :: TestTree
 catchBadKind3 = shouldFail
     "Catch bad SafeJSON instance (noVersion + extended_extension)"
     "Allowed 'noVersion' with non-(extended_)base 'kind'"
-    $ testConsistency' @DuplicateType3
+    $ testConsistency @DuplicateType3
 
 catchBadKind4 :: TestTree
 catchBadKind4 = shouldFail
     "Catch bad SafeJSON instance (duplicate future version)"
     "Allowed future type with same version"
-    $ testConsistency' @DuplicateType4
+    $ testConsistency @DuplicateType4
 
 -- Kind of redundant because of 'catchBadKind', but hey...
 catchBadKind5 :: TestTree
 catchBadKind5 = shouldFail
     "Catch bad SafeJSON instance (duplicate past version)"
     "Allowed past type with same version"
-    $ testConsistency' @DuplicateType5
+    $ testConsistency @DuplicateType5
 
 catchBadKind6 :: TestTree
 catchBadKind6 = shouldFail
     "Catch bad SafeJSON instance (duplicate versions in chain)"
     "Allowed past types with same version (this type's version not source of collision)"
-    $ testConsistency' @DuplicateType6
+    $ testConsistency @DuplicateType6
 
 --------------------------------------------------------------
 -- Conflicting version numbering / bad kinds
