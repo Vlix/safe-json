@@ -1,6 +1,11 @@
 -- This module heavily relies on code borrowed from the "safecopy"
 -- library by David Himmelstrup and Felipe Lessa, found on
 -- "https://github.com/acid-state/safecopy"
+--
+-- Though it has gone through extensive refactoring because of
+-- desired behaviour being different from the safecopy library
+-- and the fact that this library works with JSON, instead of
+-- byte serialization.
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -19,7 +24,9 @@ License     : MIT
 Maintainer  : felix.paulusma@gmail.com
 Stability   : experimental
 
-TODO: small explanation, put big one in 'Data.SafeJSON'
+This module contains all "under-the-hood" functions
+and types. 'Data.SafeJSON' exports everything for the
+outward-facing API.
 -}
 module Data.SafeJSON.Internal where
 
@@ -61,45 +68,59 @@ contain = Contained
 
 -- While the minimal definition doesn't need any declarations,
 -- it is advised to at least set the 'version' and 'kind'.
--- (and the typeName if your type is not Typeable)
+-- (and the 'typeName' if your type is not Typeable)
 
 -- SafeJSON will look forward once, but after that go down the chain.
+
+-- | A type that can be converted from and to JSON with versioning baked
+--   in, using 'Migrate' to automate migration between versions, reducing
+--   headaches when the need arrises to modify JSON formats while old
+--   formats can't simply be disregarded.
 class (ToJSON a, FromJSON a) => SafeJSON a where
   -- | The version of the type.
   --
-  --   Only used as a key so it must be unique, (this is checked at run-time)
-  --   but doesn't have to be sequential or continuous.
+  --   Only used as a key so it __must be unique__ (this is checked at run-time)
   --
-  --   The default version is '0'.
+  --   Version numbering __doesn't have to be sequential or continuous__.
+  --
+  --   /The default version is 0 (zero)./
   version :: Version a
   version = 0
 
   -- | The kind specifies how versions are dealt with. By default,
   --   values are tagged with version 0 and don't have any
-  --   previous versions. See 'extension'.
+  --   previous versions.
+  --
+  --   /The default kind is 'base'/
   kind :: Kind a
   kind = Base
 
   -- | This method defines how a value should be serialized without worrying
-  --   about adding the version. This function cannot be used directly.
-  --   One should use 'safeToJSON', instead.
+  --   about adding the version. The default implementation uses 'toJSON', but
+  --   can be modified if need be.
+  --
+  --   This function cannot be used directly. Use 'safeToJSON', instead.
   safeTo :: a -> Contained Value
   safeTo = contain . toJSON
 
   -- | This method defines how a value should be parsed without also worrying
-  --   about writing out the version tag. This function cannot be used directly.
-  --   One should use 'safeFromJSON', instead.
+  --   about writing out the version tag. The default implementation uses 'parseJSON',
+  --   but can be modified if need be.
+  --
+  --   This function cannot be used directly. Use 'safeFromJSON', instead.
   safeFrom :: Value -> Contained (Parser a)
   safeFrom = contain . parseJSON
 
-  -- | The name of the type. This is only used in error
-  --   message strings.
-  --   Feel free to leave undefined in your instances.
+  -- | The name of the type. This is used in error message strings and the
+  --   'Profile' report.
+  --
+  --   Doesn't have to be defined if your type is 'Typeable'. The default
+  --   implementation is 'typeName0'. (cf. 'typeName1', 'typeName2', etc.)
   typeName :: Proxy a -> String
   default typeName :: Typeable a => Proxy a -> String
   typeName = typeName0
 
-  -- | Internal function that should not be overrided.
+  --   Internal function that should not be overrided.
   --   @Consistent@ if the version history is consistent
   --   (i.e. there are no duplicate version numbers) and
   --   the chain of migrations is valid.
@@ -112,7 +133,6 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
 
   -- | Version profile.
   --
-  --   Useful when running tests.
   --   Shows the current version of the type and all supported
   --   versions it can migrate from.
   objectProfile :: Profile a
@@ -122,13 +142,30 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
 
 -- | This instance is needed to handle older versions.
 --
---   /N.B. Where @Migrate a@ migrates from the previous
+--   N.B. Where @Migrate a@ migrates from the previous
 --   version to the type @a@, @Migrate (Reverse a)@ can
---   be read as @MigrateTo a@ because it is the inverse
+--   be read as @MigrateTo a@, since it is the inverse
 --   of what @MigrateFrom@ does. (i.e. migrate from the
---   next version back to type @a@. This is useful when
+--   next version back to type @a@) This is useful when
 --   needing in-place updating of message formats, for
---   example)/
+--   example.
+--
+-- === __Example__
+--
+-- __Two types that can migrate to each other.__
+--
+-- (Don't forget to give @OldType@ one of the @extended@ 'kind's,
+-- and @NewType@ one of the @extension@ kinds.)
+--
+-- @
+-- instance Migrate NewType where
+--   type MigrateFrom NewType = OldType
+--   migrate OldType = NewType
+--
+-- instance Migrate (Reverse OldType) where
+--   type MigrateFrom (Reverse OldType) = NewType
+--   migrate NewType = Reverse OldType
+-- @
 class SafeJSON (MigrateFrom a) => Migrate a where
   type MigrateFrom a
   migrate :: MigrateFrom a -> a
@@ -136,44 +173,46 @@ class SafeJSON (MigrateFrom a) => Migrate a where
 
 -- | A simple numeric version id.
 --
---   'Version' has a 'Num' instance and as such can be
+--   'Version' has a 'Num' instance and should be
 --   declared using integer literals: @version = 2@
 newtype Version a = Version {unVersion :: Maybe Int64}
 -- Is it better to use 'Int32'?
 -- Maybe 'Int64' is too big for JSON?
   deriving (Eq)
 
--- | 'noVersion' is used for types that don't have
---   a version tag. This is used for primitive values, like
---   'Int', 'Text', '[a]', etc.
+-- | This is used for types that don't have
+--   a version tag.
+--
+--   This is used for primitive values, like
+--   'Int', 'Text', @[a]@, etc.
 --   But also when implementing 'SafeJSON' after the fact.
+--
+--   /N.B./ @version = noVersion@ /is distinctively different/
+--   /from/ @version = 0@/, which will add a version tag with/
+--   /the number 0 (zero), whereas 'noVersion' will not add a/
+--   /version tag./
 noVersion :: Version a
 noVersion = Version Nothing
 
 instance Show (Version a) where
   show (Version mi) = "Version " ++ showV mi
 
-liftV, liftV' :: (Int64 -> Int64 -> Int64) -> Maybe Int64 -> Maybe Int64 -> Maybe Int64
+liftV :: Integer -> (Int64 -> Int64 -> Int64) -> Maybe Int64 -> Maybe Int64 -> Maybe Int64
+liftV _ _ Nothing Nothing = Nothing
+liftV i f ma mb = Just $ toZ ma `f` toZ mb
+  where toZ = fromMaybe $ fromInteger i
 
-liftV _ Nothing Nothing = Nothing
-liftV f ma mb = Just $ toZ ma `f` toZ mb
-
-liftV' _ Nothing Nothing = Nothing
-liftV' f ma mb = Just $ toZ' ma `f` toZ' mb
-
--- | Nothing is handled as if it's zero.
+-- Nothing is handled as if it's mempty... mostly.
+-- | It is strongly discouraged to use any methods other
+--   than 'fromInteger' of 'Version''s 'Num' instance.
 instance Num (Version a) where
-  Version ma + Version mb = Version $ liftV  (+) ma mb
-  Version ma - Version mb = Version $ liftV  (-) ma mb
-  Version ma * Version mb = Version $ liftV' (*) ma mb
+  Version ma + Version mb = Version $ liftV 0 (+) ma mb
+  Version ma - Version mb = Version $ liftV 0 (-) ma mb
+  Version ma * Version mb = Version $ liftV 1 (*) ma mb
   negate (Version ma) = Version $ negate <$> ma
   abs    (Version ma) = Version $ abs    <$> ma
   signum (Version ma) = Version $ signum <$> ma
   fromInteger i = Version $ Just $ fromInteger i
-
-toZ, toZ' :: Num i => Maybe i -> i
-toZ  = fromMaybe $ fromInteger 0
-toZ' = fromMaybe $ fromInteger 1
 
 -- | This instance explicitly doesn't consider 'noVersion', since it
 -- is an exception in almost every sense.
@@ -188,23 +227,10 @@ castVersion (Version i) = Version i
 -- | This is a wrapper type used migrating backwards in the chain of compatible types.
 --
 --   This is useful when running updates in production where new-format JSON will be
---   received by old-format expecting services.
+--   received by old-format expecting programs.
 newtype Reverse a = Reverse { unReverse :: a }
 
--- | The kind of a data type determines how it is tagged (if at all).
---
---   Base kinds (see 'base') are at the bottom of the chain and can
---   optionally have no version tag. (@Base@ and @Extended Base@ are
---   the only kinds that can have no version)
---
---   Extensions (see 'extension') tells the system that there exists
---   a previous version of the data type which should be migrated if
---   needed. (This requires the data type to also have a 'Migrate a' instance)
---
---   Forward extensions (see 'extended_base' and 'extended_extension')
---   tell the system there exists at least a next version from which
---   the data type can be reverse-migrated.
---   (This requires the data type to also have a 'Migrate (Reverse a)' instance)
+-- | The kind of a data type determines how it can be migrated to.
 data Kind a where
   Base :: Kind a
   Extends :: Migrate a => Proxy (MigrateFrom a) -> Kind a
@@ -345,8 +371,13 @@ constructParserFromVersion val origVersion origKind =
               -- there's no guarantee that the migrations will continue backward
               -- down the previous chain.
               --
+              -- TODO: Somehow restrict Migrate instances in such a way that, if defined:
+              -- > MigrateFrom a = b
+              -- >  AND
+              -- > MigrateFrom (Reverse b) = a
+              --
               -- @
-              -- v1 Base   v1 Base       v1 Ext_Base
+              -- v1 Base   v1' Base      v1'' Ext_Base
               --  |         |            /\
               --  |         |             |
               -- \/        \/            \/
@@ -399,17 +430,15 @@ typeName5 _ = show $ typeRep (Proxy :: Proxy t)
 
 -- | Profile of the internal consistency of a 'SafeJSON' instance.
 --
---   /N.B. 'noVersion' shows as 'null' instead of a number./
+--   /N.B. 'noVersion' shows as/ @null@ /instead of a number./
 data Profile a = InvalidProfile String -- ^ There is something wrong with versioning
                | Profile ProfileVersions -- ^ Profile of consistent versions
   deriving (Eq)
 
 -- | Version profile of a consistent 'SafeJSON' instance.
---
--- | 'Version Nothing' shows as 'null'
 data ProfileVersions = ProfileVersions {
-    profileCurrentVersion :: Maybe Int64,
-    profileSupportedVersions :: [(Maybe Int64, String)]
+    profileCurrentVersion :: Maybe Int64, -- ^ Version of the type checked for consistency.
+    profileSupportedVersions :: [(Maybe Int64, String)] -- ^ All versions in the chain with their type names.
   } deriving (Eq)
 
 noVersionPresent :: ProfileVersions -> Bool
@@ -424,7 +453,7 @@ showVs :: [(Maybe Int64, String)] -> String
 showVs = List.intercalate ", " . fmap go
   where go (mi, s) = mconcat ["(", showV mi, ", ", s, ")"]
 
--- | 'Version Nothing' is shows as 'null'
+-- | @Version Nothing@ shows as @null@
 instance Show ProfileVersions where
   show (ProfileVersions cur sup) = mconcat
       [ "version ", showV cur, ": ["

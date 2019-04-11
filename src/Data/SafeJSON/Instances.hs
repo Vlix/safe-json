@@ -121,6 +121,7 @@ instance SafeJSON (Proxy a) where
   version = noVersion
 
 instance {-# OVERLAPPING #-} SafeJSON String where
+  typeName _ = "String"
   version = noVersion
 
 
@@ -226,11 +227,13 @@ instance SafeJSON a => SafeJSON (T a) where {       \
   typeName = typeName1;                             \
   version = noVersion }
 
--- | Lists are seen only as a container for safe values.
+-- | Lists and any other "container" are seen as only that:
+--   a container for 'SafeJSON' values.
 --
--- '[a]' is implemented as a collection of 'SafeJSON a's in such a way
--- that when parsing a collection of all migratable versions, the result
--- will be a list of that type where each element has been migrated as appropriate.
+--   "Containers" are implemented in such a way that when parsing
+--   a collection of all migratable versions, the result will be
+--   a list of that type where each element has been migrated as
+--   appropriate.
 BASIC_UNARY_FUNCTOR([])
 BASIC_UNARY_FUNCTOR(IntMap)
 BASIC_UNARY_FUNCTOR(NonEmpty)
