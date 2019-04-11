@@ -29,6 +29,9 @@ consistencyTests = testGroup "Consistency"
   [ catchLoops
   , catchBadInstance
   , dontCatchGoodType
+  , dontCatchGoodType2
+  , dontCatchGoodType3
+  , dontCatchGoodType4
   , catchBadKind
   , catchBadKind2
   , catchBadKind3
@@ -137,6 +140,14 @@ dontCatchGoodType2 :: TestTree
 dontCatchGoodType2 = testCase "DuplicateType0 is consistent" $
     testConsistency @DuplicateType0
 
+dontCatchGoodType3 :: TestTree
+dontCatchGoodType3 = testCase "DuplicateTypeX is consistent" $
+    testConsistency @DuplicateTypeX
+
+dontCatchGoodType4 :: TestTree
+dontCatchGoodType4 = testCase "DummyDuplicate is consistent" $
+    testConsistency @DummyDuplicate
+
 catchBadKind :: TestTree
 catchBadKind = shouldFail
     "Catch bad SafeJSON instances (duplicate version)"
@@ -178,7 +189,7 @@ catchBadKind6 = shouldFail
 -- Conflicting version numbering / bad kinds
 --------------------------------------------------------------
 
-#define DUPLICATE(TYPE,VERSION,KIND)             \
+#define JSON(TYPE,VERSION,KIND)                  \
 data TYPE = TYPE Text;                           \
 instance FromJSON TYPE where {                   \
     parseJSON = withText "TYPE" $ pure . TYPE }; \
@@ -192,43 +203,52 @@ instance Migrate TYPE where {      \
   type MigrateFrom TYPE = OLDTYPE; \
   migrate (OLDTYPE t) = TYPE t }
 
-#define REVERSE(TYPE,NEWTYPE)      \
+#define REVERSE(TYPE,NEWTYPE)                \
 instance Migrate (Reverse TYPE) where {      \
   type MigrateFrom (Reverse TYPE) = NEWTYPE; \
   migrate (NEWTYPE t) = Reverse $ TYPE t }
 
 -- Basic type/instance, consistent
-DUPLICATE(DuplicateType,noVersion,base)
+JSON(DuplicateType,noVersion,base)
 
 -- Basic type/instance, consistent
-DUPLICATE(DuplicateType0,1,base)
+JSON(DuplicateType0,1,base)
+
+-- Extended type/instance, consistent
+JSON(DuplicateTypeX,0,extended_base)
+REVERSE(DuplicateTypeX,DummyDuplicate)
+
+-- This is just here so DuplicateTypeX has
+-- something to 'MigrateFrom (Reverse a)'
+JSON(DummyDuplicate,1,extension)
+MIGRATE(DummyDuplicate,DuplicateTypeX)
 
 -- Extending type/instance, inconsistent (duplicate version number)
-DUPLICATE(DuplicateType1,1,extension)
+JSON(DuplicateType1,1,extension)
 MIGRATE(DuplicateType1,DuplicateType0)
 
 -- Extending type/instance, inconsistent (noVersion + extension)
-DUPLICATE(DuplicateType2,noVersion,extension)
+JSON(DuplicateType2,noVersion,extension)
 MIGRATE(DuplicateType2,DuplicateType0)
 
 -- Extending type/instance, inconsistent (noVersion + extended_extension)
-DUPLICATE(DuplicateType3,noVersion,extended_extension)
+JSON(DuplicateType3,noVersion,extended_extension)
 MIGRATE(DuplicateType3,DuplicateType0)
-REVERSE(DuplicateType3,DummyDuplicate)
+REVERSE(DuplicateType3,DummyDuplicate2)
 
 -- This is just here so DuplicateType3 has something to 'MigrateFrom (Reverse a)'
-DUPLICATE(DummyDuplicate,2,extension)
-MIGRATE(DummyDuplicate,DuplicateType3)
+JSON(DummyDuplicate2,2,extension)
+MIGRATE(DummyDuplicate2,DuplicateType3)
 
 -- Extended type/instance, inconsistent (future type has duplicate version number)
-DUPLICATE(DuplicateType4,9,extended_base)
+JSON(DuplicateType4,9,extended_base)
 REVERSE(DuplicateType4,DuplicateType5)
 
 -- Extended type/instance, inconsistent (past type has duplicate version number)
-DUPLICATE(DuplicateType5,9,extended_extension)
+JSON(DuplicateType5,9,extended_extension)
 MIGRATE(DuplicateType5,DuplicateType4)
 REVERSE(DuplicateType5,DuplicateType6)
 
 -- Extending type/instance, inconsistent (older types have duplicate version numbers)
-DUPLICATE(DuplicateType6,10,extension)
+JSON(DuplicateType6,10,extension)
 MIGRATE(DuplicateType6,DuplicateType5)

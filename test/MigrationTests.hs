@@ -46,6 +46,7 @@ migrationTests :: TestTree
 migrationTests = testGroup "Migrations"
     [ versionedPrimRoundTrip
 
+    -- Migrating
     , testSafeParse "vNil-> v1" "Couldn't parse v1 from vNil" "noversion"  $ Version1 "12345"
 
     , testSafeParse "vNil-> v2" "Couldn't parse v2 from vNil" "noversion"  $ Version2 ["12345"]
@@ -60,10 +61,13 @@ migrationTests = testGroup "Migrations"
     , testSafeParse "v2  -> v4" "Couldn't parse v4 from v2"   "version2"   $ Version4 ["success!","or","is","it?!"] Nothing
     , testSafeParse "v3  -> v4" "Couldn't parse v4 from v3"   "version3"   $ Version4 ["success!","or","is","it?!"] (Just $ posixSecondsToUTCTime 0)
 
+    -- Reverse migrating
+    , testSafeParse "v1  -> v0" "Couldn't parse v0 from v1"   "version1"   $ Version0 "success"
     , testSafeParse "v2  -> v1" "Couldn't parse v1 from v2"   "version2"   $ Version1 "success!, or, is, it?!"
     , testSafeParse "v4  -> v3" "Couldn't parse v3 from v4"   "version4"   $ Version3 ["success!","or","is","it?!"] True
     , testSafeParse "v4-2-> v3" "Couldn't parse v3 from v4-2" "version4-2" $ Version3 ["one","two","three"] False
 
+    -- Should not migrate
     , testSafeNoParse @NoVersion "v2  -> vNil" "Shouldn't parse vNil from v2" "version2"   vNilError
     , testSafeNoParse @NoVersion "v3  -> vNil" "Shouldn't parse vNil from v3" "version3"   vNilError
     , testSafeNoParse @NoVersion "v4  -> vNil" "Shouldn't parse vNil from v4" "version4"   vNilError
@@ -76,9 +80,11 @@ migrationTests = testGroup "Migrations"
     , testSafeNoParse @Version2 "v4  -> v2" "Shouldn't parse v2 from v4"   "version4"   $ noParserError "Version 4"
     , testSafeNoParse @Version2 "v4-2-> v2" "Shouldn't parse v2 from v4-2" "version4-2" $ noParserError "Version 4"
 
+    -- Other
     , testSafeParse "simple versioning" "Couldn't parse simple data v1 from UUID"  "simpleversion" $ SimpleVersion1 UUID.nil ""
     , testSafeNoParse @BadVersion "bad simple" "Shouldn't parse from bad format" "badsimpleversion" $ EE "Error in $: malformed simple data (Version 8)"
 
+    -- Container parsing
     , parseCollection @[]         @Version4 "[v4]"        allVersioned singleList
     , parseCollection @NonEmpty   @Version4 "NonEmpty v4" allVersioned singleList
     , parseCollection @DList      @Version4 "DList v4"    allVersioned singleList

@@ -41,6 +41,26 @@ instance ToJSON NoVersion where
       ]
 
 
+newtype Version0 = Version0 Text deriving (Eq, Show)
+instance SafeJSON Version0 where kind = extended_base
+
+instance FromJSON Version0 where
+  parseJSON = withObject "Version0" $ \o -> do
+      checkType "test" o
+      t <- o .: "text"
+      return $ Version0 t
+
+instance ToJSON Version0 where
+  toJSON (Version0 t) = object
+      [ "type" .= String "test"
+      , "text" .= t
+      ]
+
+instance Migrate (Reverse Version0) where
+  type MigrateFrom (Reverse Version0) = Version1
+  migrate (Version1 t) = Reverse $ Version0 t
+
+
 newtype Version1 = Version1 Text deriving (Eq, Show)
 instance SafeJSON Version1 where version = 1; kind = extended_extension
 
