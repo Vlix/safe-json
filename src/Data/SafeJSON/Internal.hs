@@ -364,7 +364,6 @@ constructParserFromVersion val origVersion origKind =
       | version == thisVersion = return $ unsafeUnpack $ safeFrom val
       | otherwise = case thisKind of
           Base          -> Left versionNotFound
-          Extended Base -> Left versionNotFound
           Extends p     -> fmap migrate <$> worker fwd (castVersion thisVersion) (kindFromProxy p)
           Extended k    -> do
               -- Technically, the forward and backward parsing could be
