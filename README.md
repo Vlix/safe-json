@@ -5,7 +5,7 @@ while keeping backward compatibility, as painless as possible. The
 way this is achieved is through versioning and defined migration
 functions to migrate older (or newer) versions to the one used.
 
-*skip to [How does it work](#howdoesitwork) for the actual implementation.*
+*skip to [How does it work](#how-does-it-work) for the actual implementation.*
 
 ## Why?
 
@@ -34,7 +34,7 @@ But this still includes overhead when the semantics of the endpoints
 didn't actually change. Why can't you just update the message format
 and leave everything as is?
 
-## How does it work {#howdoesitwork}
+## How does it work
 
 The library mainly consists of two classes:
 
@@ -63,6 +63,9 @@ instance SafeJSON MyType where
   kind = base
 ```
 
+This will add the `version` tag as `0` and indicates this is the
+first/bottom type in the migration chain.
+
 ### Migrate
 
 The `Migrate` class is where the magic happens; here you define
@@ -80,9 +83,9 @@ instance Migrate NewType where
   migrate (OldType txt) = NewType [txt]
 ```
 
-Now, whenever a JSON is encounted that is an `OldType`, we
-can parse it as such, and then immediately migrate it to
-`NewType`, which is the one the program actually uses.
+Now, whenever a JSON is encountered that should be parsed as an
+`OldType`, we can parse it as such, and then immediately migrate
+it to `NewType`, which is the one the program actually uses.
 
 
 
@@ -183,10 +186,6 @@ seperate from the `SafeJSON` instance.
 -->
 
 ## Examples
-
-This will add the `version` tag as `0` and indicates this is the
-first/bottom type in the migration chain.
-
 
 
 ```haskell
