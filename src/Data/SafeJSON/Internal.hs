@@ -47,31 +47,6 @@ import Data.Typeable (Typeable, typeRep)
 import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
 
--- | This is an inpenetrable container. A security measure
---   used to ensure 'safeFrom' and 'safeTo' are never used
---   directly. Instead, always use 'safeFromJSON' and
---   'safeToJSON'.
-newtype Contained a = Contained {unsafeUnpack :: a}
-
--- | Used when defining 'safeFrom' or 'safeTo'.
-contain :: a -> Contained a
-contain = Contained
-
-
-
--- TODO: Explain how Version Nothing works.
-
--- Making SafeJSON instances for non-Object 'Value's
--- creates additional overhead (since they get turned into objects)
--- so it is advised to try to make SafeJSON instances only for
--- top-level types that contain other types.
-
--- While the minimal definition doesn't need any declarations,
--- it is advised to at least set the 'version' and 'kind'.
--- (and the 'typeName' if your type is not Typeable)
-
--- SafeJSON will look forward once, but after that go down the chain.
-
 -- | A type that can be converted from and to JSON with versioning baked
 --   in, using 'Migrate' to automate migration between versions, reducing
 --   headaches when the need arrises to modify JSON formats while old
@@ -91,7 +66,7 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
   --   values are tagged with version 0 and don't have any
   --   previous versions.
   --
-  --   /The default kind is 'base'/
+  --   /The default kind is/ 'base'
   kind :: Kind a
   kind = Base
 
@@ -140,15 +115,12 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
 
   {-# MINIMAL #-}
 
--- | This instance is needed to handle older versions.
+-- | This instance is needed to handle the migration between
+--   older and newer versions.
 --
---   N.B. Where @Migrate a@ migrates from the previous
---   version to the type @a@, @Migrate (Reverse a)@ can
---   be read as @MigrateTo a@, since it is the inverse
---   of what @MigrateFrom@ does. (i.e. migrate from the
---   next version back to type @a@) This is useful when
---   needing in-place updating of message formats, for
---   example.
+--   Note that, where @(Migrate a)@ migrates from the previous
+--   version to the type @a@, @(Migrate (Reverse a))@ migrates
+--   from the future version to the type @a@.
 --
 -- === __Example__
 --
@@ -158,17 +130,33 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
 -- and @NewType@ one of the @extension@ kinds.)
 --
 -- @
--- instance Migrate NewType where
---   type MigrateFrom NewType = OldType
---   migrate OldType = NewType
+-- instance 'Migrate' NewType where
+--   type 'MigrateFrom' NewType = OldType
+--   'migrate' OldType = NewType
 --
--- instance Migrate (Reverse OldType) where
---   type MigrateFrom (Reverse OldType) = NewType
---   migrate NewType = Reverse OldType
+-- instance 'Migrate' (Reverse OldType) where
+--   type 'MigrateFrom' (Reverse OldType) = NewType
+--   'migrate' NewType = Reverse OldType
 -- @
 class SafeJSON (MigrateFrom a) => Migrate a where
+  -- | The type from which will be migrated to type @a@
   type MigrateFrom a
+  -- | The migration from the previous version to the
+  --   current type @a@. OR, in case of a @(Reverse a)@,
+  --   the migration from the future version back to
+  --   the current type @a@
   migrate :: MigrateFrom a -> a
+
+
+-- | This is an inpenetrable container. A security measure
+--   used to ensure 'safeFrom' and 'safeTo' are never used
+--   directly. Instead, always use 'safeFromJSON' and
+--   'safeToJSON'.
+newtype Contained a = Contained {unsafeUnpack :: a}
+
+-- | Used when defining 'safeFrom' or 'safeTo'.
+contain :: a -> Contained a
+contain = Contained
 
 
 -- | A simple numeric version id.
@@ -192,7 +180,7 @@ newtype Version a = Version {unVersion :: Maybe Int64}
 --
 --   /N.B./ @version = noVersion@ /is distinctively different/
 --   /from/ @version = 0@/, which will add a version tag with/
---   /the number 0 (zero), whereas 'noVersion' will not add a/
+--   /the number 0 (zero), whereas/ 'noVersion' /will not add a/
 --   /version tag./
 noVersion :: Version a
 noVersion = Version Nothing
@@ -245,21 +233,22 @@ base :: Kind a
 base = Base
 
 -- | Used to define 'kind'.
---   @Extends@ types extend a previous version.
+--   Extends a previous version.
 extension :: (SafeJSON a, Migrate a) => Kind a
 extension = Extends Proxy
 
 -- | Used to define 'kind'.
---   @Extended Base@ types are extended by a future version
---   and as such can migrate from that future version.
---   (cf. 'extended_extension', 'base')
+--   Types that are 'extended_base', are extended by a
+--   future version and as such can migrate backward from
+--   that future version. (cf. 'extended_extension', 'base')
 extended_base :: (SafeJSON a, Migrate (Reverse a)) => Kind a
 extended_base = Extended base
 
 -- | Used to define 'kind'.
---   @Extended Extends@ types are extended by a future version
---   and as such can migrate from that future version, but they
---   also extend a previous version. (cf. 'extended_base', 'extension')
+--   Types that are 'extended_extension' are extended
+--   by a future version and as such can migrate from
+--   that future version, but they also extend a previous
+--   version. (cf. 'extended_base', 'extension')
 extended_extension :: (SafeJSON a, Migrate a, Migrate (Reverse a)) => Kind a
 extended_extension = Extended extension
 
@@ -374,9 +363,9 @@ constructParserFromVersion val origVersion origKind =
               -- down the previous chain.
               --
               -- TODO: Somehow restrict Migrate instances in such a way that, if defined:
-              -- > MigrateFrom a = b
-              -- >  AND
               -- > MigrateFrom (Reverse b) = a
+              -- >  THEN ALSO
+              -- > MigrateFrom a = b
               --
               -- @
               -- v1 Base   v1' Base      v1'' Ext_Base
@@ -395,9 +384,9 @@ constructParserFromVersion val origVersion origKind =
               -- starts with Extends, or the run ends in case it was a Base type.
               let forwardParser :: Either String (Parser b)
                   forwardParser = do
-                      if castVersion thisVersion /= versionFromProxy reverseProxy
-                          then previousParser
-                          else Right $ unReverse . migrate <$> unsafeUnpack (safeFrom val)
+                      if castVersion thisVersion == versionFromProxy reverseProxy
+                          then Right $ unReverse . migrate <$> unsafeUnpack (safeFrom val)
+                          else previousParser
 
                   previousParser :: Either String (Parser b)
                   previousParser = worker True thisVersion k
@@ -410,27 +399,27 @@ constructParserFromVersion val origVersion origKind =
             reverseProxy :: Proxy (MigrateFrom (Reverse b))
             reverseProxy = Proxy
 
--- | Type name string representation of a nullary type constructor.
+-- | Type name string representation of a __nullary__ type constructor.
 typeName0 :: Typeable a => Proxy a -> String
 typeName0 = show . typeRep
 
--- | Type name string representation of a unary type constructor.
+-- | Type name string representation of a __unary__ type constructor.
 typeName1 :: forall t a. Typeable t => Proxy (t a) -> String
 typeName1 _ = show $ typeRep (Proxy :: Proxy t)
 
--- | Type name string representation of a binary type constructor.
+-- | Type name string representation of a __binary__ type constructor.
 typeName2 :: forall t a b. Typeable t => Proxy (t a b) -> String
 typeName2 _ = show $ typeRep (Proxy :: Proxy t)
 
--- | Type name string representation of a ternary type constructor.
+-- | Type name string representation of a __ternary__ type constructor.
 typeName3 :: forall t a b c. Typeable t => Proxy (t a b c) -> String
 typeName3 _ = show $ typeRep (Proxy :: Proxy t)
 
--- | Type name string representation of a 4-ary type constructor.
+-- | Type name string representation of a __4-ary__ type constructor.
 typeName4 :: forall t a b c d. Typeable t => Proxy (t a b c d) -> String
 typeName4 _ = show $ typeRep (Proxy :: Proxy t)
 
--- | Type name string representation of a 5-ary type constructor.
+-- | Type name string representation of a __5-ary__ type constructor.
 typeName5 :: forall t a b c d e. Typeable t => Proxy (t a b c d e) -> String
 typeName5 _ = show $ typeRep (Proxy :: Proxy t)
 

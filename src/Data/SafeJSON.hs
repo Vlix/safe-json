@@ -1,3 +1,12 @@
+{-|
+Module      : Data.SafeJSON.Instances
+Copyright   : (c) 2019 Felix Paulusma
+License     : MIT
+Maintainer  : felix.paulusma@gmail.com
+Stability   : experimental
+
+BIG EXPLANATION HERE
+-}
 module Data.SafeJSON
     (
     -- * Conversion to/from versioned JSON
@@ -58,23 +67,21 @@ module Data.SafeJSON
     , extended_extension
     -- *** Showing the type
     --
-    -- These helper functions can easily be used in the
-    -- definition of 'typeName'. As long as the type
-    -- being defined has a 'Typeable' instance.
+    -- | These helper functions can be used to easily define 'typeName'.
+    --   As long as the type being defined has a 'Typeable' instance.
     , typeName0
     , typeName1
     , typeName2
     , typeName3
     , typeName4
     , typeName5
-    -- ** Testing
+    -- ** Consistency
     , Profile(..)
     , ProfileVersions(..)
     -- * Migration
     , Migrate(..)
     , Reverse(..)
     ) where
-
 
 import Data.SafeJSON.Internal
 import Data.SafeJSON.Instances()

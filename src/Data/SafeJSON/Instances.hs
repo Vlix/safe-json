@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -37,9 +36,9 @@ import Data.Char (Char)
 import Data.DList as DList (DList, fromList)
 import Data.Fixed (Fixed, HasResolution)
 import Data.Functor.Identity (Identity(..))
-import Data.Functor.Compose (Compose)
-import Data.Functor.Product (Product)
-import Data.Functor.Sum (Sum(..))
+import Data.Functor.Compose (Compose) -- FIXME: add SafeJSON Instances
+import Data.Functor.Product (Product) -- FIXME: add SafeJSON Instances
+import Data.Functor.Sum (Sum(..))     -- FIXME: add SafeJSON Instances
 import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as HM (HashMap, fromList, toList)
 import qualified Data.HashSet as HS (HashSet, fromList, toList)
@@ -191,7 +190,7 @@ fromGenericVector val = contain $ do
       VG.convert <$> VG.mapM safeFromJSON (v :: V.Vector Value)
 
 toGenericVector :: (SafeJSON a, VG.Vector v a) => v a -> Contained Value
-toGenericVector = contain . safeToJSON . VG.toList
+toGenericVector = contain . toJSON . fmap safeToJSON . VG.toList
 
 instance SafeJSON a => SafeJSON (V.Vector a) where
   safeFrom = fromGenericVector
@@ -217,6 +216,20 @@ instance (SafeJSON a, VG.Vector VU.Vector a) => SafeJSON (VU.Vector a) where
   typeName = typeName1
   version = noVersion
 
+-- | Lists and any other "container" are seen as only that:
+--   a container for 'SafeJSON' values.
+--
+--   "Containers" are implemented in such a way that when parsing
+--   a collection of all migratable versions, the result will be
+--   a list of that type where each element has been migrated as
+--   appropriate.
+instance  {-# OVERLAPPABLE #-} SafeJSON a => SafeJSON [a] where
+  safeFrom val = contain $ do
+      vs <- parseJSON val
+      mapM safeFromJSON vs
+  safeTo as = contain . toJSON $ safeToJSON <$> as
+  typeName = typeName1
+  version = noVersion
 
 #define BASIC_UNARY_FUNCTOR(T)                      \
 instance SafeJSON a => SafeJSON (T a) where {       \
@@ -227,14 +240,6 @@ instance SafeJSON a => SafeJSON (T a) where {       \
   typeName = typeName1;                             \
   version = noVersion }
 
--- | Lists and any other "container" are seen as only that:
---   a container for 'SafeJSON' values.
---
---   "Containers" are implemented in such a way that when parsing
---   a collection of all migratable versions, the result will be
---   a list of that type where each element has been migrated as
---   appropriate.
-BASIC_UNARY_FUNCTOR([])
 BASIC_UNARY_FUNCTOR(IntMap)
 BASIC_UNARY_FUNCTOR(NonEmpty)
 BASIC_UNARY_FUNCTOR(Seq)
