@@ -1,6 +1,6 @@
 # safe-json
 
-##### Automatic JSON format versioning
+#### Automatic JSON format versioning
 
 This library aims to make the updating of JSON formats or contents,
 while keeping backward compatibility, as painless as possible. The
@@ -18,8 +18,13 @@ functions to migrate older (or newer) versions to the one used.
     * [Version](#version)
     * [Kind](#kind)
     * [Type name](#type-name)
-    * [`safeFrom` and `safeTo`](safefrom-and-safeto)
+    * [`safeFrom` and `safeTo`](#safefrom-and-safeto)
   * [Migrate](#migrate)
+* [Keep in mind](#keep-in-mind)
+  * [Using `noVersion`](#using-noversion)
+  * [Non-object versioning](#non-object-versioning)
+* [Example](#example)
+* [Acknowledgments](#acknowledgments)
 
 ---
 
@@ -74,14 +79,11 @@ The `SafeJSON` class defines the following:
 
 The default implementations of those last two use `parseJSON` and
 `toJSON`, so you probably don't have to define them.
-<!-- FIXME: add link to the exception (safeJSON inside safeJSON) -->
+(There are some exceptions: read [Version](#version) / [safeFrom/-To](#safefrom-and-safeto))
 
 __`safeFrom` and `safeTo` can not be used directly! The functions
 that implement the versioning and migrating are `safeFromJSON` and
 `safeToJSON`, which use `safeFrom` and `safeTo` internally.__
-<!-- FIXME: add link to the explanation of `noVersion` -->
-
----
 
 So given that your type already has `FromJSON` and `ToJSON` instances
 (and is `Typeable`), the most basic definition of a `SafeJSON` instance
@@ -96,17 +98,45 @@ instance SafeJSON MyType where
 This will add the `version` tag as `0` and indicates this is the
 first/bottom type in the migration chain.
 
+---
+
 #### Version
 
 The version can be set using integer literals. The only requirement
 is that no two types in a chain share the same version number.
+(It is only used as a unique identifier.)
 
-<!-- FIXME: explain about the version format
+The implication is that, when using `safeToJSON`, the resulting JSON
+will have an additional version field. How it's added depends on
+the format.
 
-Note version fields are  "!v"
-and "~v" / "~d"
+If the resulting JSON is an object (which is the most likely), an extra
+field will be added called `"!v"` with the number as the value.
 
--->
+```json
+{
+  "type": "my custom type",
+  "someValues": [{},{"testing":true}],
+  "!v": 1
+}
+```
+
+If the resulting JSON is not an object, it will be wrapped in one
+with the following fields:
+
+```json
+{
+  "~v": 2,
+  "~d": "my non-object type"
+}
+```
+
+The fields (`"!v", "~v" and "~d"`) are chosen to be the least likely
+used in any conventional setting, and as such are least likely to
+clash with any existing JSON formats. `safeFromJSON` depends on
+these fields to recover the version number, so any potential clashes
+should be avoided.
+([This can be accomplished by adjusting the `safeFrom` and `safeTo` methods](#safefrom-and-safeto))
 
 _It is possible to omit a version tag, this is not advised, but
 might be needed for integrating types that have been used before
@@ -125,8 +155,10 @@ There are four different `kind`s a type can be:
 * `extended_base`: This type has at least one newer version it
   can reverse migrate from, and none it can regularly migrate from:
   this newer type is defined as `MigrateFrom (Reverse a)`.
+  (cf. [Reverse Migration](#reverse-migration))
 * `extended_extension`: This type has at least one newer and
-  one older version it can migrate from.
+  one older version it can migrate from. (cf. [Migrate](#migrate)
+  and [Reverse Migration](#reverse-migration))
 
 A chain of `extension`s makes the backward compatibility work. If
 a type is trying to be parsed using `safeFromJSON`, all older version
@@ -155,8 +187,9 @@ While using `safeFromJSON` in a `parseJSON` definition is completely
 valid, it can be desirable to only have versioned sub-parsing
 (parsing of versioned values inside other values) happen when
 using the `SafeJSON` interface. In those cases, you would have
-to define the "safe" parsing (using `safeFromJSON` and `safeToJSON`
-in `safeFrom` and `safeTo`.
+to define the `safeFrom` and `safeTo` methods. (and using
+`safeFromJSON` and `safeToJSON` in those definitions where
+appropriate)
 
 _When defining `safeFrom` and `safeTo`, you need to use the
 `contain` function._
@@ -184,16 +217,20 @@ Now, whenever JSON is encountered that should be parsed as an
 `OldType`, we can parse it as such, and then immediately migrate
 it to `NewType`, which is the one the program actually uses.
 
-#### Reverse migration
+_Do not forget to set the `kind` of `NewType` to either
+`extension` or `extended_extension` to make use of this migration._
 
-There is the option to support a migration from one version
+#### Reverse Migration
+
+There is also the option to support a migration from one version
 higher up in the chain to the current version. This is done
 by defining the `kind` of the type in the `SafeJSON` instance
 as one of the `extended_*` kinds and defining a `Migrate
-(Reverse a)` instance for the current type. In that case,
+(Reverse a)` instance for the current type. In that case, a
 definition might look something like this:
 
 ```haskell
+-- (using the above data definitions of OldType and NewType)
 instance Migrate (Reverse OldType) where
    type MigrateFrom (Reverse OldType) = NewType
    migrate (NewType [])    = Reverse $ OldType ""
@@ -206,14 +243,13 @@ the type's reverse migrate instance, i.e. if the parsing of
 the type defined in type `a`'s `MigrateFrom (Reverse a)` fails,
 the other attempts will go down the chain, not further up._
 
-## Examples
+## Keep in mind
+
+Here are some points to take note of when using this library.
+
+### Using `noVersion`
 
 <!--
-
-## Integrating unversioned formats
-Explain how Version Nothing works.
-And the version fields
-
 ------------------------
   N.B. about noVersion
 ------------------------
@@ -224,25 +260,23 @@ program tries to parse the JSON as vNil; since, unlike versioned
 types, anything trying to still parse the vNil type of your chain, will
 ignore the version field and might succeed to parse newer versions if
 the 'parseJSON/safeFrom' implementation of vNil would allow it.
+-->
 
+### Non-object versioning
 
+<!--
 ### Safe non-object values
 Making SafeJSON instances for non-Object 'Value's
 creates additional overhead (since they get turned into objects)
 so it is advised to try to make SafeJSON instances only for
 top-level types that contain other types.
+-->
 
+## Example
 
-## Defining a SafeJSON instance
-While the minimal definition doesn't need any declarations,
-it is advised to at least set the 'version' and 'kind'.
-(and the 'typeName' if your type is not Typeable)
+This will be a simple walkthrough through an example use-case.
 
-
-## explain extended_* kinds
-SafeJSON will look forward once, but after that go down the chain.
-
-
+<!--
 
 -------------------
   start of MyType
@@ -319,7 +353,7 @@ instance ToJSON MyType where
       ]
 ```
 
-# Special Thanks
+# Acknowledgments
 
 The core of this library is inspired by the `safecopy` library
 by David Himmelstrup and Felipe Lessa, found on
