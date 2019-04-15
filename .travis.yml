@@ -1,4 +1,5 @@
-language: haskell
+sudo: enabled
+language: minimal
 
 before_install:
 # Download and unpack the stack executable
@@ -6,7 +7,7 @@ before_install:
 - export PATH=$HOME/.local/bin:$PATH
 - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
 
-script: stack build --test --ghc-options=-Wall
+script: stack build --test --ghc-options="-Wall"
 
 cache:
   directories:
