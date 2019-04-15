@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
-stack --no-terminal test --pedantic --fast safe-json
+set -euxo pipefail
+
+exec stack --no-terminal test --pedantic --fast safe-json
