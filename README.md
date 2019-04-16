@@ -1,4 +1,4 @@
-# safe-json
+# safe-json [![Build Status](https://travis-ci.org/Vlix/safe-json.svg?branch=master)](https://travis-ci.org/Vlix/safe-json)
 
 #### Automatic JSON format versioning
 
@@ -6,8 +6,6 @@ This library aims to make the updating of JSON formats or contents,
 while keeping backward compatibility, as painless as possible. The
 way this is achieved is through versioning and defined migration
 functions to migrate older (or newer) versions to the one used.
-
-*[skip to [How does it work](#how-does-it-work) for the actual implementation]*
 
 ---
 
@@ -20,10 +18,11 @@ functions to migrate older (or newer) versions to the one used.
     * [Type name](#type-name)
     * [`safeFrom` and `safeTo`](#safefrom-and-safeto)
   * [Migrate](#migrate)
+    * [Reverse Migration](#reverse-migration)
 * [Keep in mind](#keep-in-mind)
   * [Using `noVersion`](#using-noversion)
   * [Non-object versioning](#non-object-versioning)
-* [Example](#example)
+* [Examples](#examples)
 * [Acknowledgments](#acknowledgments)
 
 ---
@@ -136,12 +135,12 @@ used in any conventional setting, and as such are least likely to
 clash with any existing JSON formats. `safeFromJSON` depends on
 these fields to recover the version number, so any potential clashes
 should be avoided.
-([This can be accomplished by adjusting the `safeFrom` and `safeTo` methods](#safefrom-and-safeto))
+(If required, this can be accomplished by adjusting the
+[`safeFrom` and `safeTo` methods](#safefrom-and-safeto))
 
-_It is possible to omit a version tag, this is not advised, but
-might be needed for integrating types that have been used before
-using `SafeJSON`._
-<!-- FIXME: add link to the explanation of `noVersion` -->
+_It is possible to [omit a version tag](#using-noversion), this is
+not advised, but might be needed for integrating types that have
+been used before using `SafeJSON`._
 
 #### Kind
 
@@ -217,8 +216,8 @@ Now, whenever JSON is encountered that should be parsed as an
 `OldType`, we can parse it as such, and then immediately migrate
 it to `NewType`, which is the one the program actually uses.
 
-_Do not forget to set the `kind` of `NewType` to either
-`extension` or `extended_extension` to make use of this migration._
+_Do not forget to set the `kind` of `NewType` to either `extension`
+or `extended_extension` to make use of this type of migration._
 
 #### Reverse Migration
 
@@ -249,30 +248,42 @@ Here are some points to take note of when using this library.
 
 ### Using `noVersion`
 
-<!--
-------------------------
-  N.B. about noVersion
-------------------------
+There is a way to omit the version tag. It's by using `noVersion` instead
+of an integer literal when defining the `version` method. This is used
+to not add a version tag to 'primitive' values (`Int`, `Text`, `[]`, etc.),
+and also to give the possibility of adding a version-less format to a
+migration chain.
 
-If you include a 'noVersion' in your chain (vNil), it is advised to remove
-the need to include it as soon as possible, or, at least, to make sure no
-program tries to parse the JSON as vNil; since, unlike versioned
-types, anything trying to still parse the vNil type of your chain, will
-ignore the version field and might succeed to parse newer versions if
-the 'parseJSON/safeFrom' implementation of vNil would allow it.
--->
+When switching to `SafeJSON`, you might already have a JSON format in use.
+Adding this type as the bottom of a chain is as easy as:
+
+```haskell
+instance SafeJSON VersionLessType where
+  version = noVersion
+  kind = extended_base -- or 'base', if you don't need the forward migration
+```
+
+If you include a 'noVersion' (vNil) in your chain, it is advised to remove the
+need to include it as soon as possible; since, if the JSON being parsed has no
+version (because it might be a completely different message), having a
+`noVersion` type in your chain alone will make it try to parse it as such. In
+some cases this might lead to a succesful parse, even though it's a completely
+different JSON message. For that reason, it is advised to remove the vNil from
+your chain as soon as possible.
+
+As long as there is a version number in the JSON, though, vNil will not be
+attempted to be parsed, since "a version" doesn't match "no version".
 
 ### Non-object versioning
 
-<!--
-### Safe non-object values
-Making SafeJSON instances for non-Object 'Value's
-creates additional overhead (since they get turned into objects)
-so it is advised to try to make SafeJSON instances only for
-top-level types that contain other types.
--->
+As described in [Version](#version), the version tag added to a non-object
+Value has more relative overhead than the tag added to a JSON object.
+(min. 14 bytes and min. 7 bytes, respectively)
 
-## Example
+To keep general overhead low, it is advised to version your entire message,
+and only version individual fields if necessary.
+
+## Examples
 
 This will be a simple walkthrough through an example use-case.
 
