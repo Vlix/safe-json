@@ -20,11 +20,13 @@ functions to migrate older (or newer) versions to the one used.
   * [Migrate](#migrate)
     * [Reverse migration](#reverse-migration)
 * [Keep in mind](#keep-in-mind)
+  * [Testing](#testing)
   * [Using `noVersion`](#using-noversion)
   * [Non-object versioning](#non-object-versioning)
 * [Examples](#examples)
   * [Fresh start](#fresh-start)
   * [Production migration](#production-migration)
+    * [No down-time cheatsheet](#no-down-time-cheatsheet)
 * [Acknowledgments](#acknowledgments)
 
 ---
@@ -238,7 +240,7 @@ instance Migrate (Reverse OldType) where
    migrate (NewType (t:_)) = Reverse $ OldType t
 ```
 
-_N.B. At the moment there is no support for extended migrating
+_N.B.: At the moment there is no support for extended migrating
 from newer versions further than the one directly defined in
 the type's reverse migrate instance, i.e. if the parsing of
 the type defined in type `a`'s `MigrateFrom (Reverse a)` fails,
@@ -247,6 +249,14 @@ the other attempts will go down the chain, not further up._
 ## Keep in mind
 
 Here are some points to take note of when using this library.
+
+### Testing
+
+The module `Data.SafeJSON.Test` contains very useful testing functions
+to ensure your types and instances are consistent. It is advised to
+at least `testConsistency` of any type you create a `SafeJSON` instance
+for. This makes sure you don't have any inconsistencies in your
+migration chain, which would result in failed parsing of your type(s).
 
 ### Using `noVersion`
 
@@ -285,14 +295,14 @@ Value has more relative overhead than the tag added to a JSON object.
 To keep general overhead low, it is advised to version your entire message,
 and only version individual fields if necessary.
 
-## Examples
+# Examples
 
 I want to give two example use cases for `SafeJSON`. The first is a [fresh start](#fresh-start)
 with `SafeJSON` and how you can migrate different versions at once. The second
 is starting from a JSON format without versioning and then migrating into
 `SafeJSON` in a production setting.
 
-### Fresh start
+## Fresh start
 
 _This is an arbitrary example; some things might seem contrived._
 
@@ -312,7 +322,9 @@ data ThirdType = ThirdType {
 } deriving (Eq, Show)
 ```
 
----
+_`FromJSON` and `ToJSON` instances are included at the bottom of this example._
+
+##### Backstory
 
 We've started using our program with `FirstType`, and that went well for a
 couple of weeks. Then we wanted to add a field to maybe include the age of
@@ -390,9 +402,6 @@ instance Migrate ThirdType where
           lastName = T.dropWhile C.isSpace rest
 ```
 
-_The FromJSON and ToJSON instances are included at the bottom
-of this example._
-
 ---
 
 Our database in which we saved our data in JSON now has
@@ -457,10 +466,10 @@ The HTTP response would maybe look something like this:
 Which would result in the following Haskell data:
 
 ```haskell
-[ ThirdType {ttFirstName = "Johnny", ttLastName = "Doe", ttAge = -1}
-, Thirdtype {ttFirstName = "Jonathan", ttLastName = "Doe", ttAge = -1}
-, Thirdtype {ttFirstName = "Shelley", ttLastName = "Doegan", ttAge = 27}
-, Thirdtype {ttFirstName = "Anita", ttLastName = "McDoe", ttAge = 26}
+[ ThirdType {ttFirstName = "Johnny"  , ttLastName = "Doe"   , ttAge = -1}
+, Thirdtype {ttFirstName = "Jonathan", ttLastName = "Doe"   , ttAge = -1}
+, Thirdtype {ttFirstName = "Shelley" , ttLastName = "Doegan", ttAge = 27}
+, Thirdtype {ttFirstName = "Anita"   , ttLastName = "McDoe" , ttAge = 26}
 ]
 ```
 
@@ -519,82 +528,278 @@ instance FromJSON ThirdType where
       return Thirdtype{..}
 ```
 
-### Production migration
+## Production migration
 
-<!--
--------------------
+_This is an arbitrary example; some things might seem contrived._
+
+We've started using JSON (without versioning) as a messaging
+format between live services. Adding to it has been easy, but
+we've hit a point where we need to change the format in a way
+that current services would not be able to parse them.
+
+<!-----------------
   start of MyType
--------------------
+------------------->
 
-data MyType
+The data type already in production:
 
---------------------
-  update to MyType
---------------------
-
-data MyType_new
-
-instance SafeJSON MyType
-  version = noVersion
-  kind = extended_base
-
-instance SafeJSON MyType_new
-  kind = extension
-
-instance Migrate MyType_new
-  type MigrateFrom MyType_new = MyType
-
-instance Migrate (Reverse MyType)
-  type MigrateFrom (Reverse MyType) = MyType_new
-
-----------------------
-  switching in-place
-----------------------
-
-In production, good idea to keep branch with only
-the instance updates, while working to make the
-new formats work.
-Then when the new formats are tested -> update only the
-instances on the services in production.
-When those are all updated and running, update again
-with the new format and functionality.
-
---------------------------
-  update usages of types
---------------------------
-
-MyType     -> MyType_old
-MyType_new -> MyType
-
-
----------------------------
-  When to actually change
-  'safeFrom' and 'safeTo'
----------------------------
-
-These use 'parseJSON' and 'toJSON' by default, but can be changed
-in case the parsing with versioning should be different than without.
-This might be the case if not just the entire Value, but also individual
-fields in the object should use 'safeFromJSON' or 'safeToJSON', and
-you want/need to keep the `FromJSON`/`ToJSON` instances completely
-seperate from the `SafeJSON` instance.
--->
-
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "command": "add_user",
+  "person": {
+    "firstName": "John",
+    "middleName": null,
+    "lastName": "Doe"
+  },
+  "age": 45,
+  "address": {
+    "street": "Steenstraat",
+    "number": "25",
+    "addition": "A",
+    "city": "Koekel",
+    "country": "Friesland"
+  },
+  "phoneNumber": null
+}
+```
 
 ```haskell
-data MyType = MyType {myA :: Text, myB :: [Int]}
+data Message = Message {
+  mId :: UUID,
+  mCommand :: Text,
+  mPerson :: Person,
+  mAge :: Int,
+  mAddress :: Address,
+  mPhoneNumber :: Maybe PhoneNumber
+} deriving (Eq, Show)
+```
 
-instance FromJSON MyType where
-  parseJSON = withObject "MyType" $ \o -> do
-      myA <- o .: "text"
-      myB <- o .:? "ints" .!= []
-      return MyTypes{..}
+_`FromJSON` and `ToJSON` instances are included at the bottom of this example._
 
-instance ToJSON MyType where
-  toJSON (MyType a b) = object
-      [ "text" .= a
-      , "ints" .= b
+---
+
+The format we want to change to:
+
+```json
+{
+  "!v": 0,
+  "id": "00000000-0000-0000-0000-000000000000",
+  "command": "add_user",
+  "data": {
+    "person": {
+      "firstName": "John",
+      "middleName": null,
+      "lastName": "Doe"
+    },
+    "age": 45,
+    "address": {
+      "street": "Steenstraat",
+      "number": "25",
+      "addition": "A",
+      "city": "Koekel",
+      "country": "Friesland"
+    },
+    "phoneNumber": null
+  }
+}
+```
+
+We'll represent this as the first versioned type of this message.
+
+```haskell
+data Message_v0 = Message_v0 {
+  msgId :: UUID,
+  msgCommand :: Text,
+  msgData :: PersonalInfo
+} deriving (Eq, Show)
+
+data PersonalInfo = PersonalInfo {
+  piPerson :: Person,
+  piAge :: Int,
+  piAddress :: Address,
+  piPhoneNumber :: Maybe PhoneNumber
+} deriving (Eq, Show)
+```
+
+We'll then create the `SafeJSON` and corresponding `Migrate`
+instances:
+
+```haskell
+{-# LANGUAGE RecordWildCards #-}
+
+instance SafeJSON Message where
+  -- | This is important, since our old type has no version tag
+  version = noVersion
+  -- | extended_* makes sure we can migrate from the newer version
+  --   back to this one, since the newer formats will start going
+  --   through the system the moment the new services are deployed
+  --   and we want the older services to keep functioning.
+  kind = extended_base
+
+instance Migrate (Reverse Message) where
+  type MigrateFrom (Reverse Message) = Message_v0
+  migrate Message_v0{..} = Message
+      msgId
+      msgCommand
+      piPerson
+      piAge
+      piAddress
+      piPhoneNumber
+    where PersonalInfo{..} = msgData
+
+instance SafeJSON Message_v0 where
+  version = 0
+  -- | 'extension' ensures the new services will be able to
+  --   handle any old formats still floating around.
+  kind = extension
+
+instance Migrate Message_v0 where
+  type MigrateFrom Message_v0 = Message
+  migrate Message{..} =
+      Message_v0 mId mCommand person
+    where person = PersonalInfo
+              mPerson
+              mAge
+              mAddress
+              mPhoneNumber
+```
+
+---
+
+Assuming we've added `Message_v0` on a new development branch, and
+modified the business logic to use `Message_v0`, at this point we
+create a temporary branch from the production branch (probably
+`master`) and let's call it something like `master-message-migration`.
+
+On this branch, we only add `Message_v0` with the `SafeJSON` and
+`Migrate` instances. And replace the JSON functions with `SafeJSON`
+ones for anywhere `Message` is received by or sent to the current
+services. (i.e. use `decode`/`encode` from `Data.Aeson.Safe` instead
+of `Data.Aeson`, or `safeFromJSON`/`safeToJSON` instead of
+`parseJSON`/`toJSON`)
+
+Then we update the current services so they're ready to use `SafeJSON`
+for migrating the new JSON formats we're expecting. After the services
+that have `SafeJSON` implemented are the only ones running, we can roll
+out the new format without fear of anything throwing parsing errors.
+
+After that, we rename `Message` to `Message_old` and all usages of
+`Message_v0` to `Message` and we're back to using `Message` in
+our code, but now with a new structure. All while not having to
+worry about rerouting messages or down-time.
+
+---
+
+### No down-time cheatsheet
+
+From not using `SafeJSON` to using `SafeJSON`:
+
+* Add `SafeJSON` instance to `MyType`.
+    * _OPTIONAL: use `noVersion` when previous JSON is already used
+      in production_
+* Switch `Data.Aeson` functions for the `Data.Aeson.Safe` ones
+    * Preferably everywhere in the codebase, unless explicitly
+      needed for other purposes.
+* __At this point everything should still work like before.__
+
+Create a new development branch to keep the following changes
+separate from what's running on the servers. Do the following on
+the new branch:
+
+* Rename `MyType` to `MyType_old`:
+    * type definition
+    * `FromJSON`/`ToJSON` instances
+    * `SafeJSON` instance
+* Add the type with the new JSON representation
+    * name it `MyType`
+    * And it's `FromJSON`/`ToJSON`/`SafeJSON` instances
+* __At this point you can change your business logic to use the new type.__
+* change `kind` methods of both `SafeJSON` instances to make both
+  types migrate from eachother.
+    * `kind` of `MyType_old`: `extended_base`
+    * `kind` of `MyType`: `extension`
+* Define `Migrate` instances for both types:
+    * `Migrate (Reverse MyType_v0)`
+    * `Migrate MyType`
+* __At this point you have your new updated code ready for use.__
+
+Copy the definition of the `MyType`s with their `*JSON` instances
+to the original branch and overwrite the type definition and
+instances of the original `MyType`. Do the following only on the
+code you just copied.
+
+* Rename `MyType` to `MyType_v0` (or `MyType_new` or something)
+* Rename `MyType_old` to `MyType`.
+* __At this point everything should still work like before.__
+
+Now you should have two branches. One with the code that's still
+running on your servers (to which we added the new type, its
+instances and the migration instances), and one with the new
+code that will use the new type.
+
+* Use the original branch to update your running services to
+  make them ready to migrate from the new JSON formats.
+* After all services are using the new `SafeJSON` code, update
+  your services with the code on the new branch.
+
+Enjoy a migration where all services keep parsing all JSON they
+receive.
+
+#### FromJSON and ToJSON instances
+
+```haskell
+{-# LANGUAGE RecordWildCards #-}
+
+instance ToJSON Message where
+  toJSON Message{..} = object
+      [ "id"          .= mId
+      , "command"     .= mCommand
+      , "person"      .= mPerson
+      , "age"         .= mAge
+      , "address"     .= mAddress
+      , "phoneNumber" .= mPhoneNumber
       ]
+
+instance FromJSON Message where
+  parseJSON = withObject "Message" $ \o -> do
+    mId      <- o .: "id"
+    mCommand <- o .: "command"
+    mPerson  <- o .: "person"
+    mAge     <- o .: "age"
+    mAddress <- o .: "address"
+    mPhoneNumber <- o .:? "phoneNumber"
+    return Message{..}
+
+instance ToJSON Message_v0 where
+  toJSON Message_v0{..} = object
+      [ "id"      .= msgId
+      , "command" .= msgCommand
+      , "data"    .= msgData
+      ]
+
+instance FromJSON Message_v0 where
+  parseJSON = withObject "Message_v0" $ \o ->
+      msgId      <- o .: "id"
+      msgCommand <- o .: "command"
+      msgData    <- o .: "data"
+      return Message_v0{..}
+
+instance ToJSON PersonalInfo where
+  toJSON PersonalInfo{..} = object
+      [ "person"      .= piPerson
+      , "age"         .= piAge
+      , "address"     .= piAddress
+      , "phoneNumber" .= piPhoneNumber
+      ]
+
+instance FromJSON PersonalInfo where
+  parseJSON = withObject "PersonalInfo" $ \o ->
+      piPerson      <- o .: "person"
+      piAge         <- o .: "age"
+      piAddress     <- o .: "address"
+      piPhoneNumber <- o .: "phoneNumber"
+      return PersonalInfo{..}
 ```
 
 # Acknowledgments
