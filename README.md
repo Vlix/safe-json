@@ -65,9 +65,9 @@ is? That is the goal of this library.
 
 The library mainly consists of two classes:
 
-* `SafeJSON a`: Defines the version of `a` and if (and how) it is
+* [`SafeJSON a`](#safejson): Defines the version of `a` and if (and how) it is
 migratable.
-* `Migrate a`: Defines the data type (`MigrateFrom a`) that can be
+* [`Migrate a`](#migrate): Defines the data type (`MigrateFrom a`) that can be
 migrated to `a` and how to migrate from that type.
 
 ### SafeJSON
