@@ -689,63 +689,6 @@ After that, we rename `Message` to `Message_old` and all usages of
 our code, but now with a new structure. All while not having to
 worry about rerouting messages or down-time.
 
----
-
-### No down-time cheatsheet
-
-From not using `SafeJSON` to using `SafeJSON`:
-
-* Add `SafeJSON` instance to `MyType`.
-    * _OPTIONAL: use `noVersion` when previous JSON is already used
-      in production_
-* Switch `Data.Aeson` functions for the `Data.Aeson.Safe` ones
-    * Preferably everywhere in the codebase, unless explicitly
-      needed for other purposes.
-* __At this point everything should still work like before.__
-
-Create a new development branch to keep the following changes
-separate from what's running on the servers. Do the following on
-the new branch:
-
-* Rename `MyType` to `MyType_old`:
-    * type definition
-    * `FromJSON`/`ToJSON` instances
-    * `SafeJSON` instance
-* Add the type with the new JSON representation
-    * name it `MyType`
-    * And it's `FromJSON`/`ToJSON`/`SafeJSON` instances
-* __At this point you can change your business logic to use the new type.__
-* change `kind` methods of both `SafeJSON` instances to make both
-  types migrate from eachother.
-    * `kind` of `MyType_old`: `extended_base`
-    * `kind` of `MyType`: `extension`
-* Define `Migrate` instances for both types:
-    * `Migrate (Reverse MyType_v0)`
-    * `Migrate MyType`
-* __At this point you have your new updated code ready for use.__
-
-Copy the definition of the `MyType`s with their `*JSON` instances
-to the original branch and overwrite the type definition and
-instances of the original `MyType`. Do the following only on the
-code you just copied.
-
-* Rename `MyType` to `MyType_v0` (or `MyType_new` or something)
-* Rename `MyType_old` to `MyType`.
-* __At this point everything should still work like before.__
-
-Now you should have two branches. One with the code that's still
-running on your servers (to which we added the new type, its
-instances and the migration instances), and one with the new
-code that will use the new type.
-
-* Use the original branch to update your running services to
-  make them ready to migrate from the new JSON formats.
-* After all services are using the new `SafeJSON` code, update
-  your services with the code on the new branch.
-
-Enjoy a migration where all services keep parsing all JSON they
-receive.
-
 #### FromJSON and ToJSON instances
 
 ```haskell
@@ -801,6 +744,65 @@ instance FromJSON PersonalInfo where
       piPhoneNumber <- o .: "phoneNumber"
       return PersonalInfo{..}
 ```
+
+---
+
+### No down-time cheatsheet
+
+From not using `SafeJSON` to using `SafeJSON`:
+
+* Add `SafeJSON` instance to `MyType`.
+    * _OPTIONAL: use `noVersion` when previous JSON is already used
+      in production_
+* Switch `Data.Aeson` functions for the `Data.Aeson.Safe` ones
+    * Preferably everywhere in the codebase, unless explicitly
+      needed for other purposes.
+* __At this point everything should still work like before.__
+
+Create a new development branch to keep the following changes
+separate from what's running on the servers. Do the following on
+the new branch:
+
+* Rename `MyType` to `MyType_old`:
+    * type definition
+    * `FromJSON`/`ToJSON` instances
+    * `SafeJSON` instance
+* Add the type with the new JSON representation
+    * name it `MyType`
+    * And it's `FromJSON`/`ToJSON`/`SafeJSON` instances
+* __At this point you can change your business logic to use the new type.__
+* change `kind` methods of both `SafeJSON` instances to make both
+  types migrate from eachother.
+    * `kind` of `MyType_old`: `extended_base`
+    * `kind` of `MyType`: `extension`
+* Define `Migrate` instances for both types:
+    * `Migrate (Reverse MyType_old)`
+    * `Migrate MyType`
+* __At this point you have your new updated code ready for use.__
+
+Copy the definition of the `MyType`s with their `*JSON` and
+`Migrate` instances to the original branch and overwrite the type
+definition and instances of the original `MyType`. Do the following
+only on the code you just copied.
+
+* Rename `MyType` to `MyType_v0` (or `MyType_new` or something)
+* Rename `MyType_old` to `MyType`.
+* __At this point everything should still work like before.__
+
+Now you should have two branches. One with the code that's still
+running on your servers (to which we added the new type, its
+instances and the migration instances to migrate between the two),
+and one branch with the new code that will use the new type.
+
+* Use the original branch to update your running services to
+  make them ready to migrate from the new JSON formats.
+* After all services are using the new `SafeJSON` code, update
+  your services with the code on the new branch.
+
+Enjoy a migration where all services keep parsing all JSON they
+receive.
+
+---
 
 # Acknowledgments
 
