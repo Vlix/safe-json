@@ -18,11 +18,13 @@ functions to migrate older (or newer) versions to the one used.
     * [Type name](#type-name)
     * [`safeFrom` and `safeTo`](#safefrom-and-safeto)
   * [Migrate](#migrate)
-    * [Reverse Migration](#reverse-migration)
+    * [Reverse migration](#reverse-migration)
 * [Keep in mind](#keep-in-mind)
   * [Using `noVersion`](#using-noversion)
   * [Non-object versioning](#non-object-versioning)
 * [Examples](#examples)
+  * [Fresh start](#fresh-start)
+  * [Production migration](#production-migration)
 * [Acknowledgments](#acknowledgments)
 
 ---
@@ -154,10 +156,10 @@ There are four different `kind`s a type can be:
 * `extended_base`: This type has at least one newer version it
   can reverse migrate from, and none it can regularly migrate from:
   this newer type is defined as `MigrateFrom (Reverse a)`.
-  (cf. [Reverse Migration](#reverse-migration))
+  (cf. [Reverse migration](#reverse-migration))
 * `extended_extension`: This type has at least one newer and
   one older version it can migrate from. (cf. [Migrate](#migrate)
-  and [Reverse Migration](#reverse-migration))
+  and [Reverse migration](#reverse-migration))
 
 A chain of `extension`s makes the backward compatibility work. If
 a type is trying to be parsed using `safeFromJSON`, all older version
@@ -219,7 +221,7 @@ it to `NewType`, which is the one the program actually uses.
 _Do not forget to set the `kind` of `NewType` to either `extension`
 or `extended_extension` to make use of this type of migration._
 
-#### Reverse Migration
+#### Reverse migration
 
 There is also the option to support a migration from one version
 higher up in the chain to the current version. This is done
@@ -285,10 +287,241 @@ and only version individual fields if necessary.
 
 ## Examples
 
-This will be a simple walkthrough through an example use-case.
+I want to give two example use cases for `SafeJSON`. The first is a [fresh start](#fresh-start)
+with `SafeJSON` and how you can migrate different versions at once. The second
+is starting from a JSON format without versioning and then migrating into
+`SafeJSON` in a production setting.
+
+### Fresh start
+
+_This is an arbitrary example; some things might seem contrived._
+
+The data types we're working with:
+
+```haskell
+data FirstType = FirstType Text
+  deriving (Eq, Show)
+
+data SecondType = SecondType (Text, Maybe Int)
+  deriving (Eq, Show)
+
+data ThirdType = ThirdType {
+  ttFirstName :: Text
+  ttLastName :: Text,
+  ttAge :: Int,
+} deriving (Eq, Show)
+```
+
+---
+
+We've started using our program with `FirstType`, and that went well for a
+couple of weeks. Then we wanted to add a field to maybe include the age of
+whatever the data was (if it was something that has an age), this is the
+`SecondType`. A while after, we noticed we only had data on people, so why
+not represent it as such. (`ThirdType`)
+
+JSON formats with versions added:
+
+```json
+// FirstType
+{
+  "type": "myType",
+  "data": "Johnny Doe",
+  "!v": 0
+}
+```
+
+```json
+// SecondType
+{
+  "type": "myType",
+  "name": "Johnny Doe",
+  "age": 27,
+  "!v": 1
+}
+```
+
+```json
+// ThirdType
+{
+  "type": "myType",
+  "firstName": "Johnny",
+  "lastName": "Doe",
+  "age": 27,
+  "!v": 2
+}
+```
+
+---
+
+SafeJSON instances:
+
+```haskell
+-- This sets 'version' to '0', and 'kind' to 'base'
+instance SafeJSON FirstType
+```
+
+```haskell
+instance SafeJSON SecondType where
+  version = 1
+  kind = extension
+
+instance Migrate SecondType where
+  type MigrateFrom SecondType = FirstType
+  migrate (FirstType name) = SecondType (name,Nothing)
+```
+
+```haskell
+import qualified Data.Char as C
+import qualified Data.Text as T
+
+instance SafeJSON Thirdtype where
+  version = 2
+  kind = extension
+
+instance Migrate ThirdType where
+  type MigrateFrom ThirdType = SecondType
+  migrate (SecondType (name, mAge)) = ThirdType {
+      ttFirstName = firstName,
+      ttLastName  = lastName,
+      ttAge       = fromMaybe (-1) mAge
+    }
+    where (firstName,rest) = T.break C.isSpace name
+          lastName = T.dropWhile C.isSpace rest
+```
+
+_The FromJSON and ToJSON instances are included at the bottom
+of this example._
+
+---
+
+Our database in which we saved our data in JSON now has
+three different JSON formats, depending on how far back in
+time we go. But that's no problem for us! We just request
+all the JSON from the database, which result in a `[Value]`,
+and if we want to use it immediately, just use something like
+the following:
+
+```haskell
+parseValues :: [Value] -> Either String [ThirdType]
+parseValues = mapM $ parseEither safeFromJSON
+```
+
+But we can also use the `[Value]` in the response body of a
+HTTP request when requested by a different program, and that
+program can just use a function from the `Data.Aeson.Safe`
+module, like `eitherDecode`, to parse the `ByteString` body:
+
+```haskell
+import Data.Aeson.Safe as Safe
+
+foo = do
+  res <- httpLbs theRequest
+  let eVal = Safe.eitherDecode $ responseBody res :: [ThirdType]
+  case eVal of
+    Left err  -> putStrLn $ "bad value in response: " ++ err
+    Right tts -> withAllVersionsToThird tts
+```
+
+The HTTP response would maybe look something like this:
+
+```json
+[
+  {
+    "type": "myType",
+    "data": "Johnny Doe",
+    "!v": 0
+  },
+  {
+    "type": "myType",
+    "name": "Jonathan Doe",
+    "age": null,
+    "!v": 1
+  },
+  {
+    "type": "myType",
+    "name": "Shelley Doegan",
+    "age": 27,
+    "!v": 1
+  },
+  {
+    "type": "myType",
+    "firstName": "Anita",
+    "lastName": "McDoe",
+    "age": 26,
+    "!v": 2
+  }
+]
+```
+
+Which would result in the following Haskell data:
+
+```haskell
+[ ThirdType {ttFirstName = "Johnny", ttLastName = "Doe", ttAge = -1}
+, Thirdtype {ttFirstName = "Jonathan", ttLastName = "Doe", ttAge = -1}
+, Thirdtype {ttFirstName = "Shelley", ttLastName = "Doegan", ttAge = 27}
+, Thirdtype {ttFirstName = "Anita", ttLastName = "McDoe", ttAge = 26}
+]
+```
+
+#### FromJSON and ToJSON instances
+
+```haskell
+instance ToJSON FirstType where
+  toJSON (FirstType txt) = object
+      [ "type" .= String "myType"
+      , "data" .= txt
+      ]
+
+instance FromJSON FirstType where
+  parseJSON = withObject "FirstType" $ \o -> do
+      typ  <- o .: "type"
+      guard $ typ == String "myType"
+      data <- o .: "data"
+      return $ FirstType data
+```
+
+```haskell
+instance ToJSON SecondType where
+  toJSON (SecondType (name, age)) = object
+      [ "type" .= String "myType"
+      , "name" .= name
+      , "age"  .= age
+      ]
+
+instance FromJSON SecondType where
+  parseJSON = withObject "SecondType" $ \o -> do
+      typ  <- o .: "type"
+      guard $ typ == String "myType"
+      name <- o .: "name"
+      age  <- o .:? "age"
+      return $ SecondType (name, age)
+```
+
+```haskell
+{-# LANGUAGE RecordWildCards #-}
+
+instance ToJSON ThirdType where
+  toJSON ThirdType{..} = object
+      [ "type" .= String "myType"
+      , "firstName" .= ttFirstName
+      , "lastName"  .= ttLastName
+      , "age"       .= ttAge
+      ]
+
+instance FromJSON ThirdType where
+  parseJSON = withObject "ThirdType" $ \o -> do
+      typ  <- o .: "type"
+      guard $ typ == String "myType"
+      ttFirstName <- o .: "firstName"
+      ttLastName  <- o .: "lastName"
+      ttAge       <- o .: "age"
+      return Thirdtype{..}
+```
+
+### Production migration
 
 <!--
-
 -------------------
   start of MyType
 -------------------
