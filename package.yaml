@@ -1,12 +1,12 @@
 name:                safe-json
-version:             0.1.0.0
+version:             0.1.0
 github:              "Vlix/safe-json"
 license:             MIT
 author:              "Felix Paulusma"
 maintainer:          "felix.paulusma@gmail.com"
 copyright:           "2019 Felix Paulusma"
 # Metadata used when publishing your package
-# synopsis:            Short description of your package
+synopsis:            Automatic JSON format versioning
 category:            "JSON"
 
 extra-source-files:
