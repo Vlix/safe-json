@@ -13,7 +13,6 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Data.Aeson.Safe
-import Data.SafeJSON
 import Types
 
 
