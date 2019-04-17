@@ -20,21 +20,21 @@ extra-source-files:
 description:         Please see README at <https://github.com/Vlix/safe-json#readme>
 
 dependencies:
-- aeson
-- base >= 4.7 && < 5
-- bytestring
-- containers
-- dlist
-- hashable
-- scientific
-- tasty
-- tasty-hunit
-- tasty-quickcheck
-- text
-- time
-- unordered-containers
-- uuid-types
-- vector
+- aeson                 >= 1.4.1
+- base                  >= 4.9 && < 5
+- bytestring            >= 0.9.2.1
+- containers            >= 0.5.7.1
+- dlist                 >= 0.7
+- hashable              >= 1.2.4
+- scientific            >= 0.3.5.1
+- tasty                 >= 0.10.1.2
+- tasty-hunit           >= 0.10
+- tasty-quickcheck      >= 0.8
+- text                  >= 1.2.2
+- time                  >= 1.5.0.1
+- unordered-containers  >= 0.2.6
+- uuid-types            >= 1.0.3
+- vector                >= 0.6.1
 
 library:
   source-dirs: src
@@ -50,17 +50,17 @@ tests:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - generic-arbitrary
-    - safe-json
-    - quickcheck-instances
-    - tasty
-    - tasty-hunit
-    - tasty-quickcheck
-    - temporary
-    - uuid
+      - generic-arbitrary
+      - safe-json
+      - quickcheck-instances
+      - tasty
+      - tasty-hunit
+      - tasty-quickcheck
+      - temporary
+      - uuid
     default-extensions:
       - OverloadedStrings
