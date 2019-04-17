@@ -150,7 +150,7 @@ migrateReverseRoundTrip :: forall a. (Eq a, Show a, SafeJSON a, Migrate (Reverse
 migrateReverseRoundTrip newType = "Unexpected result of decoding encoded newer type" `assertEqual` Right (unReverse $ migrate newType :: a) $
     parseEither (safeFromJSON . safeToJSON) newType
 
--- Constraints for migrating from a previous version
+-- | Constraints for migrating from a previous version
 type TestMigrate a b =
     ( Eq a
     , Show (MigrateFrom a)
@@ -183,7 +183,7 @@ migrateRoundTripProp :: forall a b. TestMigrate a b => String -> TestTree
 migrateRoundTripProp s = testProperty s $ \a ->
     Right (migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
--- Constraints for migrating from a future version
+-- | Constraints for migrating from a future version
 type TestReverseMigrate a b =
     ( Eq a
     , Show (MigrateFrom (Reverse a))

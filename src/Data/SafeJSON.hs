@@ -5,7 +5,12 @@ License     : MIT
 Maintainer  : felix.paulusma@gmail.com
 Stability   : experimental
 
-BIG EXPLANATION HERE
+Please read the
+
+__[README on GitHub](https://github.com/Vlix/safe-json/blob/v0.1.0/README.md)__
+
+for an extensive explanation of this library, why and how to use it,
+and examples.
 -}
 module Data.SafeJSON
     (

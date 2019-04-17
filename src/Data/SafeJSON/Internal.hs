@@ -273,15 +273,20 @@ dataField = "~d"
 --   If the 'Value' resulting from 'safeTo' (by default the same as 'toJSON')
 --   is an @Object@, an extra field with the version number will be added.
 --
---  > (e.g. {.., "!v": 1}
+-- > Example value:
+-- >   {"type":"test", "data":true}
+-- >
+-- > Resulting object:
+-- >   {"!v": 1, "type":"test", "data":true}
 --
 --   If the resulting 'Value' is not an @Object@, it will be wrapped
 --   in one, with a version field:
 --
--- @
---   Example value: "arbitrary string"
---   {"~v": 1, "~d": "arbitrary string"}
--- @
+-- > Example value:
+-- >   "arbitrary string"
+-- >
+-- > Resulting object:
+-- >   {"~v": 1, "~d": "arbitrary string"}
 --
 --   __This function does not check consistency of the 'SafeJSON' instances.__
 --   __It is advised to always 'Data.SafeJSON.Test.testConsistency' for all__
