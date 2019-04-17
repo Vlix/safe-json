@@ -18,7 +18,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-|
-Module      : Data.SafeJSON.Instances
+Module      : Data.SafeJSON.Internal
 Copyright   : (c) 2019 Felix Paulusma
 License     : MIT
 Maintainer  : felix.paulusma@gmail.com
@@ -89,7 +89,7 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
   -- | The name of the type. This is used in error message strings and the
   --   'Profile' report.
   --
-  --   Doesn't have to be defined if your type is 'Typeable'. The default
+  --   Doesn't have to be defined if your type is 'Data.Typeable.Typeable'. The default
   --   implementation is 'typeName0'. (cf. 'typeName1', 'typeName2', etc.)
   typeName :: Proxy a -> String
   default typeName :: Typeable a => Proxy a -> String
@@ -265,7 +265,27 @@ dataVersionField = "~v"
 dataField :: Text
 dataField = "~d"
 
--- We don't check consistency here, since we're only adding a version number.
+-- | Use this exactly how you would use 'toJSON' from 'Data.Aeson'.
+--   Though most use cases will probably use one of the 'Data.Aeson.Safe.encode'
+--   functions from @Data.Aeson.Safe@.
+--
+--   'safeToJSON' will add a version tag to the 'Value' created.
+--   If the 'Value' resulting from 'safeTo' (by default the same as 'toJSON')
+--   is an @Object@, an extra field with the version number will be added.
+--
+--  > (e.g. {.., "!v": 1}
+--
+--   If the resulting 'Value' is not an @Object@, it will be wrapped
+--   in one, with a version field:
+--
+-- @
+--   Example value: "arbitrary string"
+--   {"~v": 1, "~d": "arbitrary string"}
+-- @
+--
+--   __This function does not check consistency of the 'SafeJSON' instances.__
+--   __It is advised to always 'Data.SafeJSON.Test.testConsistency' for all__
+--   __your instances in a production setting.__
 safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case thisKind of
     Base          | i == Nothing -> tojson
@@ -280,22 +300,36 @@ safeToJSON a = case thisKind of
         Version i = version :: Version a
         thisKind = kind :: Kind a
 
--- | The consistency is not checked before every parsing.
---   This will either always run or always fail depending on
---   the consistency of the 'SafeJSON' instance in question,
---   since checkConsistency is
+-- The consistency is checked on first parse, after that
+-- there is no overhead.
+-- | Use this exactly how you would use 'parseJSON' from 'Data.Aeson'.
+--   Though most use cases will probably use one of the 'Data.Aeson.Safe.decode'
+--   functions from 'Data.Aeson.Safe'.
+--
+--   'safeFromJSON' tries to find the version number in the JSON
+--   'Value' provided, find the appropriate parser and migrate the
+--   parsed result back to the requested type using 'Migrate'
+--   instances.
+--
+--   If there is no version number (that means this can also happen with
+--   completely unrelated JSON messages), and there is a 'SafeJSON'
+--   instance in the chain that has 'version' defined as 'noVersion',
+--   it will try to parse that type.
+--
+--   __N.B. If the consistency of the 'SafeJSON' instance in__
+--   __question is faulty, this will always fail.__
 safeFromJSON :: forall a. SafeJSON a => Value -> Parser a
-safeFromJSON origVal = checkConsistency p $ \vs ->
+safeFromJSON origVal = checkConsistency p $ \vs -> do
+    let hasVNil = noVersionPresent vs
     case origKind of
       Base       | i == Nothing -> unsafeUnpack $ safeFrom origVal
-      Extended k | i == Nothing -> extendedCase vs k
-      _ -> regularCase vs
+      Extended k | i == Nothing -> extendedCase hasVNil k
+      _ -> regularCase hasVNil
   where Version i = version :: Version a
         origKind = kind :: Kind a
         p = Proxy :: Proxy a
         safejsonErr s = fail $ "safejson: " ++ s
-
-        regularCase vs = case origVal of
+        regularCase hasVNil = case origVal of
             Object o -> do
                 (mVal, v) <- tryIt o
                 let val = fromMaybe origVal mVal
@@ -303,7 +337,7 @@ safeFromJSON origVal = checkConsistency p $ \vs ->
             _ -> withoutVersion <|> safejsonErr ("unparsable JSON value (not an object): " ++ typeName p)
           where withoutVersion = withVersion noVersion origVal origKind
                 tryIt o
-                  | noVersionPresent vs = firstTry o <|> secondTry o <|> pure (Nothing, noVersion)
+                  | hasVNil = firstTry o <|> secondTry o <|> pure (Nothing, noVersion)
                   | otherwise = firstTry o <|> secondTry o
 
         -- This only runs if the SafeJSON being tried has 'kind' of 'extended_*'
@@ -311,8 +345,8 @@ safeFromJSON origVal = checkConsistency p $ \vs ->
         -- (internalConsistency checks that it should be an 'Extended Base' since it has 'noVersion')
         -- We check the newer version first, since it's better to try to find the
         -- version, if there is one, to guarantee the right parser.
-        extendedCase :: Migrate (Reverse a) => ProfileVersions -> Kind a -> Parser a
-        extendedCase vs k = case k of { Base -> go; _ -> regularCase vs }
+        extendedCase :: Migrate (Reverse a) => Bool -> Kind a -> Parser a
+        extendedCase hasVNil k = case k of { Base -> go; _ -> regularCase hasVNil }
           where go = case origVal of
                         Object o -> tryNew o <|> tryOrig
                         _ -> tryOrig

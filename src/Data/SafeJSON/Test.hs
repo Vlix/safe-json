@@ -11,7 +11,7 @@ Maintainer  : felix.paulusma@gmail.com
 Stability   : experimental
 
 This module contains some functions to use for testing
-'SafeJSON' instances.
+'SafeJSON' and 'Migrate' instances.
 -}
 module Data.SafeJSON.Test (
   -- * Consistency checks
@@ -150,14 +150,16 @@ migrateReverseRoundTrip :: forall a. (Eq a, Show a, SafeJSON a, Migrate (Reverse
 migrateReverseRoundTrip newType = "Unexpected result of decoding encoded newer type" `assertEqual` Right (unReverse $ migrate newType :: a) $
     parseEither (safeFromJSON . safeToJSON) newType
 
-type TestMigrate a b = ( Eq a
-                       , Show (MigrateFrom a)
-                       , Arbitrary (MigrateFrom a)
-                       , SafeJSON a
-                       , SafeJSON (MigrateFrom a)
-                       , Migrate a
-                       , MigrateFrom a ~ b
-                       )
+-- Constraints for migrating from a previous version
+type TestMigrate a b =
+    ( Eq a
+    , Show (MigrateFrom a)
+    , Arbitrary (MigrateFrom a)
+    , SafeJSON a
+    , SafeJSON (MigrateFrom a)
+    , Migrate a
+    , MigrateFrom a ~ b
+    )
 
 -- | This test verifies that direct migration, and migration
 --   through encoding and decoding to the newer type, is equivalent
@@ -181,13 +183,15 @@ migrateRoundTripProp :: forall a b. TestMigrate a b => String -> TestTree
 migrateRoundTripProp s = testProperty s $ \a ->
     Right (migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
-type TestReverseMigrate a b = ( Eq a
-                              , Show (MigrateFrom (Reverse a))
-                              , Arbitrary (MigrateFrom (Reverse a))
-                              , SafeJSON a
-                              , Migrate (Reverse a)
-                              , MigrateFrom (Reverse a) ~ b
-                              )
+-- Constraints for migrating from a future version
+type TestReverseMigrate a b =
+    ( Eq a
+    , Show (MigrateFrom (Reverse a))
+    , Arbitrary (MigrateFrom (Reverse a))
+    , SafeJSON a
+    , Migrate (Reverse a)
+    , MigrateFrom (Reverse a) ~ b
+    )
 
 -- | Similar to 'migrateRoundTripProp, but tests the migration from a newer type
 --   to the older type, in case of a @Migrate (Reverse a)@ instance.
