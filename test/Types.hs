@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 module Types where
@@ -8,6 +9,10 @@ import Data.Aeson
 import Data.Aeson.Types (Parser)
 import Data.Hashable (Hashable(..))
 import Data.Maybe (isJust)
+#if MIN_VERSION_base(4,11,0)
+#else
+import Data.Monoid ((<>))
+#endif
 import Data.Text as T
 import Data.Time (UTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)

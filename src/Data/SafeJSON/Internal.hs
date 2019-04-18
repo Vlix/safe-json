@@ -6,6 +6,7 @@
 -- desired behaviour being different from the safecopy library
 -- and the fact that this library works with JSON, instead of
 -- byte serialization.
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -40,6 +41,10 @@ import Data.HashMap.Strict as HM (insert, size)
 import Data.Int
 import qualified Data.List as List (intercalate, lookup)
 import Data.Maybe (fromMaybe, isJust, isNothing)
+#if MIN_VERSION_base(4,11,0)
+#else
+import Data.Monoid ((<>))
+#endif
 import Data.Proxy
 import qualified Data.Set as S
 import Data.Text (Text)
