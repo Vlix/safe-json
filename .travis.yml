@@ -1,6 +1,13 @@
 sudo: enabled
 language: minimal
 
+matrix:
+  include:
+  - env: ARGS="--resolver lts-9  --stack-yaml stack_lts-9.yaml"
+  - env: ARGS="--resolver lts-11 --stack-yaml stack_lts-12.yaml"
+  - env: ARGS="--resolver lts-12 --stack-yaml stack_lts-12.yaml"
+  - env: ARGS="--resolver lts-13"
+
 before_install:
 # Download and unpack the stack executable
 - mkdir -p ~/.local/bin
