@@ -6,17 +6,17 @@ License     : MIT
 Maintainer  : felix.paulusma@gmail.com
 Stability   : experimental
 
-This module contains homonyms of the 'Data.Aeson' library's
+This module contains homonyms of the "Data.Aeson" library's
 encoding and decoding functions that, instead, use
-'Data.SafeJSON''s conversions.
-This way, switching from 'Data.Aeson' to 'Data.SafeJSON' is
-very easy. After any @Data.Aeson@ imports, just add @.Safe@.
+"Data.SafeJSON"'s conversions.
+This way, switching from "Data.Aeson" to "Data.SafeJSON" is
+very easy. After any "Data.Aeson" imports, just add @.Safe@.
 
-It also exports 'Data.Aeson' itself for convenience, but still
+It also exports "Data.Aeson" itself for convenience, but still
 hides 'parseJSON' and 'toJSON' so you will get errors if you
 use them anywhere. That way you can explicitly decide where
 to switch to 'safeFromJSON' or 'safeToJSON', or keep the
-current 'Data.Aeson' functions.
+current "Data.Aeson" functions.
 -}
 module Data.Aeson.Safe (
     module Data.SafeJSON

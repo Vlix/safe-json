@@ -26,7 +26,7 @@ Maintainer  : felix.paulusma@gmail.com
 Stability   : experimental
 
 This module contains all "under-the-hood" functions
-and types. 'Data.SafeJSON' exports everything for the
+and types. "Data.SafeJSON" exports everything for the
 outward-facing API.
 -}
 module Data.SafeJSON.Internal where
@@ -270,9 +270,9 @@ dataVersionField = "~v"
 dataField :: Text
 dataField = "~d"
 
--- | Use this exactly how you would use 'toJSON' from 'Data.Aeson'.
+-- | Use this exactly how you would use 'toJSON' from "Data.Aeson".
 --   Though most use cases will probably use one of the 'Data.Aeson.Safe.encode'
---   functions from @Data.Aeson.Safe@.
+--   functions from "Data.Aeson.Safe".
 --
 --   'safeToJSON' will add a version tag to the 'Value' created.
 --   If the 'Value' resulting from 'safeTo' (by default the same as 'toJSON')
@@ -312,9 +312,9 @@ safeToJSON a = case thisKind of
 
 -- The consistency is checked on first parse, after that
 -- there is no overhead.
--- | Use this exactly how you would use 'parseJSON' from 'Data.Aeson'.
+-- | Use this exactly how you would use 'parseJSON' from "Data.Aeson".
 --   Though most use cases will probably use one of the 'Data.Aeson.Safe.decode'
---   functions from 'Data.Aeson.Safe'.
+--   functions from "Data.Aeson.Safe".
 --
 --   'safeFromJSON' tries to find the version number in the JSON
 --   'Value' provided, find the appropriate parser and migrate the
