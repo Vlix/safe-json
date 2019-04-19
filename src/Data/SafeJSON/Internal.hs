@@ -177,7 +177,7 @@ newtype Version a = Version {unVersion :: Maybe Int64}
 --   a version tag.
 --
 --   This is used for primitive values that are tagged with
---   a version number, like 'Int', 'Text', @[a]@, etc.
+--   a version number, like @Int@, @Text@, @[a]@, etc.
 --
 --   But also when implementing 'SafeJSON' after the fact,
 --   when a format is already in use, but you still want to
@@ -274,8 +274,8 @@ dataField = "~d"
 --   Though most use cases will probably use one of the 'Data.Aeson.Safe.encode'
 --   functions from "Data.Aeson.Safe".
 --
---   'safeToJSON' will add a version tag to the 'Value' created.
---   If the 'Value' resulting from 'safeTo' (by default the same as 'toJSON')
+--   'safeToJSON' will add a version tag to the 'Data.Aeson.Value' created.
+--   If the 'Data.Aeson.Value' resulting from 'safeTo' (by default the same as 'toJSON')
 --   is an @Object@, an extra field with the version number will be added.
 --
 -- > Example value:
