@@ -10,14 +10,38 @@ synopsis:            Automatic JSON format versioning
 category:            "JSON"
 
 extra-source-files:
-- README.md
+- README
 - ChangeLog.md
 
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see README at <https://github.com/Vlix/safe-json#readme>
+description: >
+    This library aims to make the updating of JSON formats or contents,
+    while keeping backward compatibility, as painless as possible.
+    The way this is achieved is through versioning and defined migration
+    functions to migrate older (or newer) versions to the one used.
+
+
+    The library mainly consists of two classes:
+
+
+    * @SafeJSON a@: Defines the version of @a@ and if (and how) it is
+    migratable.
+
+
+    * @Migrate a@: Defines the data type (@MigrateFrom a@) that can be
+    migrated to @a@ and how to migrate from that type.
+
+
+    Using these two classes, JSON serialized data types will stay
+    parsable, even after format changes. For a more in-depth explanation
+    and examples,
+
+
+    Please see the README at <https://github.com/Vlix/safe-json#readme>
+
 
 dependencies:
 - aeson                 >= 1.4.1      && < 1.5
