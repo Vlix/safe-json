@@ -36,11 +36,11 @@ description: >
 
 
     Using these two classes, JSON serialized data types will stay
-    parsable, even after format changes. For a more in-depth explanation
-    and examples,
+    parsable, even after format changes.
 
 
-    Please see the README at <https://github.com/Vlix/safe-json#readme>
+    For a more in-depth explanation and examples,
+    please see the README at <https://github.com/Vlix/safe-json#readme>
 
 
 dependencies:
