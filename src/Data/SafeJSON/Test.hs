@@ -16,11 +16,12 @@ This module contains some functions to use for testing
 module Data.SafeJSON.Test (
   -- * Consistency checks
   --
-  -- | It is advised to always run one of the @testConsistency@
-  --   tests for all your types that have 'SafeJSON' instances.
+  -- | It is advised to always run 'testConsistency' (or
+  --   'testConsistency'') for all your types that have
+  --   a 'SafeJSON' instance.
   --
-  --   Note that any type that fails this test will also fail
-  --   any 'safeFromJSON' parsing!
+  --   __Note that any type that fails this test will also__
+  --   __fail any 'safeFromJSON' parsing!__
 
   -- ** Using TypeApplications
     testConsistency
@@ -35,8 +36,8 @@ module Data.SafeJSON.Test (
   , testMigration
   , testReverseMigration
   -- *** Synonyms
-  , (>=?)
   , (<=?)
+  , (>=?)
   -- ** Round trip tests
   --
   -- | These tests can be used to verify that round trips are
@@ -117,26 +118,30 @@ testRoundTripProp s = testProperty s $ \a ->
 
 -- | Migration test. Mostly useful as regression test.
 --
--- First argument is the older type which should turn into
--- the second argument after migrating using 'migrate'.
+--   First argument is the older type which should turn into
+--   the second argument after migrating using 'migrate'.
+--
+--   prop> Just (migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
 testMigration :: (Show a, Eq a, Migrate a) => MigrateFrom a -> a -> Assertion
 testMigration = assertEqual "Unexpected result of SafeJSON migration" . migrate
 
 -- | Similar to 'testMigration', but using @Migrate (Reverse a)@.
 --
--- The first argument here is the newer type, which will be migrated back
--- to the expected second argument (older type).
+--   The first argument here is the newer type, which will be migrated back
+--   to the expected second argument (older type).
+--
+--   prop> Just (unReverse $ migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
 testReverseMigration :: (Show a, Eq a, Migrate (Reverse a)) => MigrateFrom (Reverse a) -> a -> Assertion
 testReverseMigration = assertEqual "Unexpected result of SafeJSON migration" . unReverse . migrate
 
 infix 1 >=?, <=?
 -- | Operator synonymous with 'testMigration'
-(>=?) :: (Show a, Eq a, Migrate a) => MigrateFrom a -> a -> Assertion
-(>=?) = testMigration
+(<=?) :: (Show a, Eq a, Migrate a) => MigrateFrom a -> a -> Assertion
+(<=?) = testMigration
 
 -- | Operator synonymous with 'testReverseMigration'
-(<=?) :: (Show a, Eq a, Migrate (Reverse a)) => MigrateFrom (Reverse a) -> a -> Assertion
-(<=?) = testReverseMigration
+(>=?) :: (Show a, Eq a, Migrate (Reverse a)) => MigrateFrom (Reverse a) -> a -> Assertion
+(>=?) = testReverseMigration
 
 -- | This test verifies that direct migration, and migration
 --   through encoding and decoding to the newer type, is equivalent.
