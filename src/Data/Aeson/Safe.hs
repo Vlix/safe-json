@@ -38,6 +38,7 @@ module Data.Aeson.Safe (
   , eitherDecodeFileStrict'
   , encodeStrict
 
+  , Parser
   , parseEither
   , parseMaybe
   ) where
