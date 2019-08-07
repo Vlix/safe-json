@@ -176,7 +176,7 @@ newtype Version a = Version {unVersion :: Maybe Int64}
 -- | This is used for types that don't have
 --   a version tag.
 --
---   This is used for primitive values that are tagged with
+--   This is used for primitive values that are not tagged with
 --   a version number, like @Int@, @Text@, @[a]@, etc.
 --
 --   But also when implementing 'SafeJSON' after the fact,
