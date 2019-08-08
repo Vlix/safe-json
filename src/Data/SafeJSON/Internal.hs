@@ -211,9 +211,7 @@ instance Applicative Contained where
 --
 --   'Version' has a 'Num' instance and should be
 --   declared using integer literals: @version = 2@
-newtype Version a = Version {unVersion :: Maybe Int64}
--- Is it better to use 'Int32'?
--- Maybe 'Int64' is too big for JSON?
+newtype Version a = Version {unVersion :: Maybe Int32}
   deriving (Eq)
 
 -- | This is used for types that don't have
@@ -236,7 +234,7 @@ noVersion = Version Nothing
 instance Show (Version a) where
   show (Version mi) = "Version " ++ showV mi
 
-liftV :: Integer -> (Int64 -> Int64 -> Int64) -> Maybe Int64 -> Maybe Int64 -> Maybe Int64
+liftV :: Integer -> (Int32 -> Int32 -> Int32) -> Maybe Int32 -> Maybe Int32 -> Maybe Int32
 liftV _ _ Nothing Nothing = Nothing
 liftV i f ma mb = Just $ toZ ma `f` toZ mb
   where toZ = fromMaybe $ fromInteger i
@@ -520,19 +518,19 @@ data Profile a = InvalidProfile String -- ^ There is something wrong with versio
 
 -- | Version profile of a consistent 'SafeJSON' instance.
 data ProfileVersions = ProfileVersions {
-    profileCurrentVersion :: Maybe Int64, -- ^ Version of the type checked for consistency.
-    profileSupportedVersions :: [(Maybe Int64, String)] -- ^ All versions in the chain with their type names.
+    profileCurrentVersion :: Maybe Int32, -- ^ Version of the type checked for consistency.
+    profileSupportedVersions :: [(Maybe Int32, String)] -- ^ All versions in the chain with their type names.
   } deriving (Eq)
 
 noVersionPresent :: ProfileVersions -> Bool
 noVersionPresent (ProfileVersions c vs) =
     isNothing c || isJust (Nothing `List.lookup` vs)
 
-showV :: Maybe Int64 -> String
+showV :: Maybe Int32 -> String
 showV Nothing  = "null"
 showV (Just i) = show i
 
-showVs :: [(Maybe Int64, String)] -> String
+showVs :: [(Maybe Int32, String)] -> String
 showVs = List.intercalate ", " . fmap go
   where go (mi, s) = mconcat ["(", showV mi, ", ", s, ")"]
 
@@ -584,11 +582,11 @@ isObviouslyConsistent :: Kind a -> Bool
 isObviouslyConsistent Base = True
 isObviouslyConsistent _    = False
 
-availableVersions :: forall a. SafeJSON a => Proxy a -> [(Maybe Int64, String)]
+availableVersions :: forall a. SafeJSON a => Proxy a -> [(Maybe Int32, String)]
 availableVersions _ =
     worker False (kind @a)
   where
-    worker :: forall b. SafeJSON b => Bool -> Kind b -> [(Maybe Int64, String)]
+    worker :: forall b. SafeJSON b => Bool -> Kind b -> [(Maybe Int32, String)]
     worker fwd thisKind = case thisKind of
         Base       -> [tup]
         Extends p' -> tup : worker fwd (kindFromProxy p')
@@ -607,7 +605,7 @@ invalidChain _ =
   worker mempty mempty (kind @a)
   where
     --                                Version set            Version set with type name     Kind      Maybe error
-    worker :: forall b. SafeJSON b => S.Set (Maybe Int64) -> S.Set (Maybe Int64, String) -> Kind b -> Maybe String
+    worker :: forall b. SafeJSON b => S.Set (Maybe Int32) -> S.Set (Maybe Int32, String) -> Kind b -> Maybe String
     worker vs vSs k
       | i `S.member` vs = Just $ mconcat
           [ "Double occurence of version number '", showV i
