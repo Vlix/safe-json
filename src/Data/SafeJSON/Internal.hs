@@ -92,7 +92,7 @@ import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 --   in, using 'Migrate' to automate migration between versions, reducing
 --   headaches when the need arrises to modify JSON formats while old
 --   formats can't simply be disregarded.
-class (ToJSON a, FromJSON a) => SafeJSON a where
+class SafeJSON a where
   -- | The version of the type.
   --
   --   Only used as a key so it __must be unique__ (this is checked at run-time)
@@ -117,6 +117,7 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
   --
   --   This function cannot be used directly. Use 'safeToJSON', instead.
   safeTo :: a -> Contained Value
+  default safeTo :: ToJSON a => a -> Contained Value
   safeTo = contain . toJSON
 
   -- | This method defines how a value should be parsed without also worrying
@@ -125,6 +126,7 @@ class (ToJSON a, FromJSON a) => SafeJSON a where
   --
   --   This function cannot be used directly. Use 'safeFromJSON', instead.
   safeFrom :: Value -> Contained (Parser a)
+  default safeFrom :: FromJSON a => Value -> Contained (Parser a)
   safeFrom = contain . parseJSON
 
   -- | The name of the type. This is used in error message strings and the
@@ -683,7 +685,7 @@ BASIC_NULLARY(IntSet)
 BASIC_NULLARY(UUID)
 BASIC_NULLARY(Value)
 
-instance (SafeJSON a, Integral a) => SafeJSON (Ratio a) where
+instance (FromJSON a, ToJSON a, Integral a) => SafeJSON (Ratio a) where
   typeName = typeName1
   version = noVersion
 
@@ -729,7 +731,7 @@ instance SafeJSON a => SafeJSON (Maybe a) where
   safeFrom Null = contain $ pure (Nothing :: Maybe a)
   safeFrom val = contain $ Just <$> safeFromJSON val
   -- Nothing means do whatever Aeson thinks Nothing should be
-  safeTo Nothing = contain $ toJSON (Nothing :: Maybe a)
+  safeTo Nothing = contain $ toJSON (Nothing :: Maybe Value)
   -- If there's something, keep it safe
   safeTo (Just a) = contain $ safeToJSON a
   typeName = typeName1

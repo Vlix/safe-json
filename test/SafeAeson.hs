@@ -55,7 +55,7 @@ parseBigFile s fp = testCase s $ do
     z <- A.eitherDecodeFileStrict' fp
     z @=? y
 
-parseValue :: forall a. (SafeJSON a, Eq a, Show a) => String -> TestTree
+parseValue :: forall a. (FromJSON a, SafeJSON a, Eq a, Show a) => String -> TestTree
 parseValue s = testCase s $ do
     lbs <- LBS.readFile noVersionPath
     decode @a       lbs @=? A.decode       lbs
@@ -65,7 +65,7 @@ parseValue s = testCase s $ do
     decodeStrict @a       bs @=? A.decodeStrict       bs
     eitherDecodeStrict @a bs @=? A.eitherDecodeStrict bs
 
-parseValue' :: forall a. (SafeJSON a, Eq a, Show a) => String -> TestTree
+parseValue' :: forall a. (FromJSON a, SafeJSON a, Eq a, Show a) => String -> TestTree
 parseValue' s = testCase s $ do
     lbs <- LBS.readFile noVersionPath
     decode' @a       lbs @=? A.decode'       lbs
@@ -75,7 +75,7 @@ parseValue' s = testCase s $ do
     decodeStrict' @a       bs @=? A.decodeStrict'       bs
     eitherDecodeStrict' @a bs @=? A.eitherDecodeStrict' bs
 
-parseFile :: forall a. (SafeJSON a, Eq a, Show a) => String -> FilePath -> TestTree
+parseFile :: forall a. (FromJSON a, SafeJSON a, Eq a, Show a) => String -> FilePath -> TestTree
 parseFile s fp = testCase s $ do
     a <- decodeFileStrict @Value fp
     b <- A.decodeFileStrict fp
@@ -93,7 +93,7 @@ parseFile s fp = testCase s $ do
     z <- A.eitherDecodeFileStrict fp
     z @=? y
 
-parseFile' :: forall a. (SafeJSON a, Eq a, Show a) => String -> FilePath -> TestTree
+parseFile' :: forall a. (FromJSON a, SafeJSON a, Eq a, Show a) => String -> FilePath -> TestTree
 parseFile' s fp = testCase s $ do
     a <- decodeFileStrict' @Value fp
     b <- A.decodeFileStrict' fp
