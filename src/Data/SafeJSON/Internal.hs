@@ -6,6 +6,7 @@
 -- desired behaviour being different from the safecopy library
 -- and the fact that this library works with JSON, instead of
 -- byte serialization.
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
@@ -49,7 +50,7 @@ import Data.Functor.Product (Product) -- FIXME: add SafeJSON Instances
 import Data.Functor.Sum (Sum(..))     -- FIXME: add SafeJSON Instances
 import Data.Hashable (Hashable)
 import Data.HashMap.Strict as HM (insert, size)
-import qualified Data.HashMap.Strict as HM (HashMap, fromList, toList)
+import qualified Data.HashMap.Strict as HM (HashMap, delete, fromList, lookup, toList)
 import qualified Data.HashSet as HS (HashSet, fromList, toList)
 import Data.Int
 import Data.IntMap (IntMap)
@@ -231,6 +232,81 @@ newtype Version a = Version {unVersion :: Maybe Int32}
 noVersion :: Version a
 noVersion = Version Nothing
 
+-- | /CAUTION: Only use this function if you know what you're doing./
+--   /The version will be set top-level, without inspection of the 'Value'!/
+--
+--   (cf. 'removeVersion') In some rare cases, you might want to interpret
+--   a versionless 'Value' as a certain type/version. 'setVersion' allows
+--   you to (unsafely) insert a version field.
+
+--   __If possible, it is advised to use a 'FromJSON' instance instead.__
+--   (One that doesn't also use `safeFromJSON` in its methods!)
+--
+--   This might be needed when data sent to an API endpoint doesn't
+--   need to implement SafeJSON standards. E.g. in the case of
+--   endpoints for third parties or customers.
+--
+-- @
+-- USAGE:
+--
+-- {-# LANGUAGE TypeApplications#-}
+-- data Test = Test String
+-- instance 'SafeJSON' Test
+--
+-- >>> val = 'Data.Aeson.String' "test" :: 'Value'
+-- String "test"
+-- >>> 'encode' val
+-- "\"test\""
+-- >>> 'encode' $ 'setVersion' (version @Test) val
+-- "{\"~v\":0,\"~d\":\"test\"}"
+-- >>> parseMaybe 'safeFromJSON' $ 'setVersion' (version @Test) val
+-- Just (Test "test")
+-- @
+--
+-- @since 1.0.0
+setVersion :: forall a. SafeJSON a => Version a -> Value -> Value
+setVersion (Version mVersion) val =
+  case mVersion of
+    Nothing -> val
+    Just i -> case val of
+      Object o ->
+          let vField = maybe versionField
+                             (const dataVersionField)
+                             $ dataVersionField `HM.lookup` o
+          in Object $ HM.insert vField (toJSON i) o
+      other -> object
+          [ dataVersionField .= i
+          , dataField .= other
+          ]
+
+-- | Same as 'setVersion', but uses @TypeApplications@
+--
+-- @since 1.0.0
+setVersion_ :: forall a. SafeJSON a => Value -> Value
+setVersion_ = setVersion (version @a)
+
+-- | /CAUTION: Only use this function if you know what you're doing./
+--
+--   (cf. 'setVersion') This function removes all the 'SafeJSON'
+--   versioning from a JSON 'Value'. Even recursively.
+--
+--   This might be necessary if the resulting JSON is sent to a
+--   third party (e.g. customer) and the 'SafeJSON' versioning
+--   should be hidden.
+--
+-- @since 1.0.0
+removeVersion :: Value -> Value
+removeVersion = \case
+    Object o -> go o
+    -- Recursively find all version tags and remove them.
+    Array a -> Array $ removeVersion <$> a
+    other -> other
+        -- Recursively find all version tags and remove them.
+  where go o = maybe regular removeVersion $ do
+                  _ <- dataVersionField `HM.lookup` o
+                  dataField `HM.lookup` o
+          where regular = Object $ removeVersion <$> HM.delete versionField o
+
 instance Show (Version a) where
   show (Version mi) = "Version " ++ showV mi
 
@@ -241,7 +317,7 @@ liftV i f ma mb = Just $ toZ ma `f` toZ mb
 
 -- 'Version Nothing' is handled as if it's mempty... mostly.
 -- | It is strongly discouraged to use any methods other
---   than 'fromInteger' of 'Version' 's 'Num' instance.
+--   than 'fromInteger' of 'Version'\'s 'Num' instance.
 instance Num (Version a) where
   Version ma + Version mb = Version $ liftV 0 (+) ma mb
   Version ma - Version mb = Version $ liftV 0 (-) ma mb
@@ -341,12 +417,7 @@ safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case thisKind of
     Base          | i == Nothing -> tojson
     Extended Base | i == Nothing -> tojson
-    _ -> case tojson of
-            Object o -> Object $ HM.insert versionField (toJSON i) o
-            other    -> object
-                [ dataVersionField .= i
-                , dataField .= other
-                ]
+    _ -> setVersion_ @a tojson
   where tojson = unsafeUnpack $ safeTo a
         Version i = version :: Version a
         thisKind = kind :: Kind a

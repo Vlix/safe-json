@@ -44,6 +44,9 @@ module Data.SafeJSON
     --   the given JSON.
     , Version
     , noVersion
+    , setVersion
+    , setVersion_
+    , removeVersion
     -- ** Kind
     --
     -- | All 'SafeJSON' instance have a declared 'kind', indicating if any
