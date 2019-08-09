@@ -10,6 +10,7 @@ import ConsistencyTests
 import MigrationTests
 import PrimitiveTests
 import SafeAeson
+import Version
 import VersionNum
 
 
@@ -19,6 +20,7 @@ main = Tasty.defaultMain tests
 tests :: TestTree
 tests = testGroup "\nSafeJSON"
     [ numTest (Proxy :: Proxy (Version a))
+    , versionFuncTests
     , primitiveTests
     , consistencyTests
     , encodeDecodeTests
