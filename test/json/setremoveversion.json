@@ -1,0 +1,72 @@
+{
+  "SimpleVersion": {
+    "with": {
+      "~v":1,
+      "~d": [0,1,2,3]
+    },
+    "without": [0,1,2,3]
+  },
+  "WithVersion1": {
+    "with": {
+      "!v":0,
+      "test": "testing1"
+    },
+    "without":
+      { "test": "testing1" }
+  },
+  "WithVersion2": {
+    "with": {
+      "!v":0,
+      "test": {
+        "!v":0,
+        "test": "testing2"
+      }
+    },
+    "without": {
+      "test": {
+        "test": "testing2"
+      }
+    }
+  },
+  "WithVersion3": {
+    "with": {
+      "!v":0,
+      "test": [
+        {
+          "!v":0,
+          "test": "testing3"
+        },
+        {
+          "!v":0,
+          "test": "testing4"
+        }
+      ]
+    },
+    "without": {
+      "test": [
+        { "test": "testing3" },
+        { "test": "testing4" }
+      ]
+    }
+  },
+  "reSetVersion": {
+    "with": {
+      "!v":2,
+      "test": "testing1"
+    },
+    "without": {
+      "!v": 0,
+      "test": "testing1"
+    }
+  },
+  "reSetVersionSimple": {
+    "with": {
+      "~v":3,
+      "~d": [0,1,2,3]
+    },
+    "without": {
+      "~v":1,
+      "~d": [0,1,2,3]
+    }
+  }
+}
