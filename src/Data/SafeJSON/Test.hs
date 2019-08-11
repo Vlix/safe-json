@@ -94,8 +94,8 @@ testConsistency' = flip checkConsistency $ \_ -> return ()
 -- | Tests that the following holds:
 --
 --   prop> Just a == parseMaybe safeFromJSON (safeToJSON a)
-testRoundTrip :: (Show a, Eq a, SafeJSON a) => a -> Assertion
-testRoundTrip a = "To JSON and back not consistent" `assertEqual` Right a $
+testRoundTrip :: forall a. (Show a, Eq a, SafeJSON a) => a -> Assertion
+testRoundTrip a = (typeName (Proxy :: Proxy a) <> ": to JSON and back not consistent") `assertEqual` Right a $
     parseEither (safeFromJSON . safeToJSON) a
 
 -- | Tests that the following holds __for all @a@__:
