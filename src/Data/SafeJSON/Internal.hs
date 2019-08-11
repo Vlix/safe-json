@@ -192,21 +192,24 @@ class SafeJSON (MigrateFrom a) => Migrate a where
   migrate :: MigrateFrom a -> a
 
 
--- | This is an inpenetrable container. A security measure
+-- | This is an impenetrable container. A security measure
 --   used to ensure 'safeFrom' and 'safeTo' are never used
 --   directly. Instead, always use 'safeFromJSON' and
 --   'safeToJSON'.
 newtype Contained a = Contained {unsafeUnpack :: a}
-  deriving (Functor)
+  -- Opens up mis-use of 'safeFrom' / 'safeTo', better to not
+  -- deriving (Functor)
 
 -- | Used when defining 'safeFrom' or 'safeTo'.
 contain :: a -> Contained a
 contain = Contained
 
+{-
+-- Opens up mis-use of 'safeFrom' / 'safeTo', better to not
 instance Applicative Contained where
   pure = contain
   Contained f <*> Contained a = Contained $ f a
-
+-}
 
 -- | A simple numeric version id.
 --
@@ -281,13 +284,16 @@ setVersion (Version mVersion) val =
 
 -- | Same as 'setVersion', but uses @TypeApplications@
 --
+-- >>> 'encode' $ 'setVersion' @Test val
+-- "{\"~v\":0,\"~d\":\"test\"}"
+--
 -- @since 1.0.0
 setVersion_ :: forall a. SafeJSON a => Value -> Value
 setVersion_ = setVersion (version @a)
 
 -- | /CAUTION: Only use this function if you know what you're doing./
 --
---   (cf. 'setVersion') This function removes all the 'SafeJSON'
+--   (cf. 'setVersion') 'removeVersion' removes all the 'SafeJSON'
 --   versioning from a JSON 'Value'. Even recursively.
 --
 --   This might be necessary if the resulting JSON is sent to a
