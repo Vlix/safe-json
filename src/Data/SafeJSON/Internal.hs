@@ -459,13 +459,12 @@ safeFromJSON origVal = checkConsistency p $ \vs -> do
         safejsonErr s = fail $ "safejson: " ++ s
         regularCase hasVNil = case origVal of
             Object o -> do
-                (mVal, v) <- tryIt o
-                let val = fromMaybe origVal mVal
+                (val, v) <- tryIt o
                 withVersion v val origKind
             _ -> withoutVersion <|> safejsonErr ("unparsable JSON value (not an object): " ++ typeName p)
           where withoutVersion = withVersion noVersion origVal origKind
                 tryIt o
-                  | hasVNil = firstTry o <|> secondTry o <|> pure (Nothing, noVersion)
+                  | hasVNil = firstTry o <|> secondTry o <|> pure (origVal, noVersion)
                   | otherwise = firstTry o <|> secondTry o
 
         -- This only runs if the SafeJSON being tried has 'kind' of 'extended_*'
@@ -479,10 +478,9 @@ safeFromJSON origVal = checkConsistency p $ \vs -> do
                         Object o -> tryNew o <|> tryOrig
                         _ -> tryOrig
                 tryNew o = do
-                    (mVal, v) <- firstTry o <|> secondTry o
+                    (val, v) <- firstTry o <|> secondTry o
                     let forwardKind = getForwardKind k
                         forwardVersion = castVersion v
-                        val = fromMaybe origVal mVal
                         getForwardParser = withVersion forwardVersion val forwardKind
                     unReverse . migrate <$> getForwardParser
                 tryOrig = unsafeUnpack $ safeFrom origVal
@@ -493,7 +491,8 @@ safeFromJSON origVal = checkConsistency p $ \vs -> do
 
         firstTry o = do
             v <- o .: versionField
-            return (Nothing, Version $ Just v)
+            let versionLessObj = HM.delete versionField o
+            return (Object versionLessObj, Version $ Just v)
         secondTry o = do
             v  <- o .: dataVersionField
             bd <- o .: dataField
@@ -501,7 +500,7 @@ safeFromJSON origVal = checkConsistency p $ \vs -> do
             -- The simple data object should contain exactly the
             -- (~v) and (~d) fields
             when (HM.size o /= 2) $ fail $ "malformed simple data (" ++ show (Version $ Just v) ++ ")"
-            return (Just bd, Version $ Just v)
+            return (bd, Version $ Just v)
 
 -- This takes the version number found (or Nothing) and tries find the type in
 -- the chain that has that version number. It will attempt to go one type up
