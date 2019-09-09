@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -69,6 +70,9 @@ module Data.SafeJSON.Test (
 
 
 import Data.Aeson.Types (parseEither)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Monoid ((<>))
+#endif
 import Data.Proxy
 import Data.SafeJSON.Internal
 import Test.Tasty (TestTree)
