@@ -82,7 +82,8 @@ The `SafeJSON` class defines the following:
 * [`safeTo`](safefrom-and-safeto): how to parse _to_ a JSON value
 
 The default implementations of those last two use `parseJSON` and
-`toJSON`, so you probably don't have to define them.
+`toJSON`, so if you already have `FromJSON` and `ToJSON` instances
+for your type, you don't have to define them.
 (There are some exceptions: read [Version](#version) / [safeFrom/-To](#safefrom-and-safeto))
 
 __`safeFrom` and `safeTo` can not be used directly! The functions
@@ -125,8 +126,8 @@ field will be added called `"!v"` with the number as the value.
 }
 ```
 
-If the resulting JSON is not an object, it will be wrapped in one
-with the following fields:
+If the resulting JSON is not an object, it will be wrapped in the
+following 2-field object:
 
 ```json
 {
@@ -145,7 +146,7 @@ should be avoided.
 
 _It is possible to [omit a version tag](#using-noversion), this is
 not advised, but might be needed for integrating types that have
-been used before using `SafeJSON`._
+been used before using `SafeJSON` and therefore have no version field._
 
 #### Kind
 
@@ -182,10 +183,12 @@ used to easily define this method. (`typeName0-5`)
 
 #### `safeFrom` and `safeTo`
 
-In general, these methods should not have to be defined, since
-`FromJSON` and `ToJSON` are constraints on the `SafeJSON` class.
-There might be times when it is preferable to have the `SafeJSON`
-parsing be different from the `From-/ToJSON` parsing, though.
+If the type already has `FromJSON` and `ToJSON` instances,
+the default definition will just use those. But if you're only
+going to use the `SafeJSON` variants, the parsing from and to JSON
+can be defined in the `safeFrom` and `safeTo` methods.
+There might also be times when it is preferable to have the `SafeJSON`
+parsing be different from the `From-/ToJSON` parsing.
 
 While using `safeFromJSON` in a `parseJSON` definition is completely
 valid, it can be desirable to only have versioned sub-parsing
@@ -197,6 +200,11 @@ appropriate)
 
 _When defining `safeFrom` and `safeTo`, you need to use the
 `contain` function._
+
+Since version `1.0.0`, a few convenience functions have been
+added to make defining `safeFrom` and `safeTo` methods a lot
+easier, and to make the experience more similar to defining
+`parseJSON` and `toJSON`. (e.g. `containWithObject`, `.:$`, `.=$`, etc.)
 
 ---
 
