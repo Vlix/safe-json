@@ -284,7 +284,7 @@ setVersion (Version mVersion) val =
 
 -- | Same as 'setVersion', but uses @TypeApplications@
 --
--- >>> 'encode' $ 'setVersion' @Test val
+-- >>> 'encode' $ 'setVersion_' @Test val
 -- "{\"~v\":0,\"~d\":\"test\"}"
 --
 -- @since 1.0.0
