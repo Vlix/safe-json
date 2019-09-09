@@ -43,9 +43,9 @@ module Data.SafeJSON
     --   in defining the 'safeFrom' and 'safeTo' methods.
     --
     -- @
-    -- safeFrom = containWithObject "MyType" $ \o ->
-    --   MyType <$> o .:  "regular_value"
-    --          <*> o .:$ "safe_value"
+    -- safeFrom = containWithObject \"MyType\" $ \\o ->
+    --   MyType \<$\> o .:  "regular_value"
+    --          \<*\> o .:$ "safe_value"
     --
     -- safeTo (MyType regular safe) =
     --   contain . object $
