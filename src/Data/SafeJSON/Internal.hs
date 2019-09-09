@@ -735,41 +735,57 @@ withContained f name prs = contain . f name prs
 
 -- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
 -- in 'safeFrom' definitions
+--
+-- @since 1.0.0
 containWithObject :: String -> (Object -> Parser a) -> Value -> Contained (Parser a)
 containWithObject = withContained withObject
 
 -- | Similar to 'Data.Aeson.withArray', but 'contain'ed to be used
 -- in 'safeFrom' definitions
+--
+-- @since 1.0.0
 containWithArray :: String -> (Array -> Parser a) -> Value -> Contained (Parser a)
 containWithArray = withContained withArray
 
 -- | Similar to 'Data.Aeson.withText', but 'contain'ed to be used
 -- in 'safeFrom' definitions
+--
+-- @since 1.0.0
 containWithText :: String -> (Text -> Parser a) -> Value -> Contained (Parser a)
 containWithText = withContained withText
 
 -- | Similar to 'Data.Aeson.withScientific', but 'contain'ed to be used
 -- in 'safeFrom' definitions
+--
+-- @since 1.0.0
 containWithScientific :: String -> (Scientific -> Parser a) -> Value -> Contained (Parser a)
 containWithScientific = withContained withScientific
 
 -- | Similar to 'Data.Aeson.withBool', but 'contain'ed to be used
 -- in 'safeFrom' definitions
+--
+-- @since 1.0.0
 containWithBool :: String -> (Bool -> Parser a) -> Value -> Contained (Parser a)
 containWithBool = withContained withBool
 
 -- | Similar to 'Data.Aeson..:', but uses `safeFromJSON` instead of parseJSON
 -- to parse the value in the given field.
+--
+-- @since 1.0.0
 (.:$) :: SafeJSON a => Object -> Text -> Parser a
 (.:$) = explicitParseField safeFromJSON
 
 -- | Similar to 'Data.Aeson..:?', but uses `safeFromJSON` instead of parseJSON
 -- to maybe parse the value in the given field.
+--
+-- @since 1.0.0
 (.:$?) :: SafeJSON a => Object -> Text -> Parser (Maybe a)
 (.:$?) = explicitParseFieldMaybe safeFromJSON
 
 -- | Similar to 'Data.Aeson..:!', but uses `safeFromJSON` instead of parseJSON
 -- to maybe parse the value in the given field.
+--
+-- @since 1.0.0
 (.:$!) :: SafeJSON a => Object -> Text -> Parser (Maybe a)
 (.:$!) = explicitParseFieldMaybe' safeFromJSON
 
@@ -781,6 +797,8 @@ containWithBool = withContained withBool
 
 -- | Similarly to 'Data.Aeson..=', but uses 'safeToJSON' instead of toJSON
 -- to convert the value in that key-value pair.
+--
+-- @since 1.0.0
 (.=$) :: (SafeJSON a, KeyValue kv) => Text -> a -> kv
 name .=$ val = name .= safeToJSON val
 
