@@ -25,10 +25,13 @@ plusTest _ = testGroup "Plus laws"
           where go a = (a :: a) + fromInteger 0 == a
 
 minusTest :: forall a. (Num a, Eq a, Arbitrary a, Show a) => Proxy a -> TestTree
-minusTest _ = testProperty "Minus law" $ \a -> (a :: a) - a == fromInteger 0
+minusTest _ = testGroup "Minus laws"
+  [ testProperty "Minus itself == 0" $ \a -> (a :: a) - a == fromInteger 0
+  , testProperty "Minus 0 == itself" $ \a -> (a :: a) - fromInteger 0 == a
+  ]
 
 multTest :: forall a. (Num a, Eq a, Arbitrary a, Show a) => Proxy a -> TestTree
-multTest _ = testGroup "Plus laws"
+multTest _ = testGroup "Multiplication laws"
     [ multAssociative
     , multCommutative
     , multIdentity
@@ -51,5 +54,5 @@ negateTest _ = testGroup "Negate laws"
                             \a -> negate (negate a) == (a :: a)
 
 absSignumTest :: forall a. (Num a, Eq a, Arbitrary a, Show a) => Proxy a -> TestTree
-absSignumTest _ = testProperty "Absolute time signum is original" $
-                      \a -> abs a * signum a == (a :: a)
+absSignumTest _ = testProperty "Absolute * signum is original" $
+    \a -> abs a * signum a == (a :: a)

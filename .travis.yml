@@ -7,6 +7,7 @@ matrix:
   - env: ARGS="--resolver lts-11 --stack-yaml stack_lts-12.yaml"
   - env: ARGS="--resolver lts-12 --stack-yaml stack_lts-12.yaml"
   - env: ARGS="--resolver lts-13"
+  - env: ARGS="--resolver lts-14"
 
 before_install:
 # Download and unpack the stack executable

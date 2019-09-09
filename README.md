@@ -22,6 +22,7 @@ functions to migrate older (or newer) versions to the one used.
 * [Keep in mind](#keep-in-mind)
   * [Testing](#testing)
   * [Using `noVersion`](#using-noversion)
+  * [Using `setVersion` and `removeVersion`](#using-setversion-and-removeversion)
   * [Non-object versioning](#non-object-versioning)
 * [Examples](#examples)
   * [Fresh start](#fresh-start)
@@ -81,7 +82,8 @@ The `SafeJSON` class defines the following:
 * [`safeTo`](safefrom-and-safeto): how to parse _to_ a JSON value
 
 The default implementations of those last two use `parseJSON` and
-`toJSON`, so you probably don't have to define them.
+`toJSON`, so if you already have `FromJSON` and `ToJSON` instances
+for your type, you don't have to define them.
 (There are some exceptions: read [Version](#version) / [safeFrom/-To](#safefrom-and-safeto))
 
 __`safeFrom` and `safeTo` can not be used directly! The functions
@@ -124,8 +126,8 @@ field will be added called `"!v"` with the number as the value.
 }
 ```
 
-If the resulting JSON is not an object, it will be wrapped in one
-with the following fields:
+If the resulting JSON is not an object, it will be wrapped in the
+following 2-field object:
 
 ```json
 {
@@ -144,7 +146,7 @@ should be avoided.
 
 _It is possible to [omit a version tag](#using-noversion), this is
 not advised, but might be needed for integrating types that have
-been used before using `SafeJSON`._
+been used before using `SafeJSON` and therefore have no version field._
 
 #### Kind
 
@@ -181,10 +183,12 @@ used to easily define this method. (`typeName0-5`)
 
 #### `safeFrom` and `safeTo`
 
-In general, these methods should not have to be defined, since
-`FromJSON` and `ToJSON` are constraints on the `SafeJSON` class.
-There might be times when it is preferable to have the `SafeJSON`
-parsing be different from the `From-/ToJSON` parsing, though.
+If the type already has `FromJSON` and `ToJSON` instances,
+the default definition will just use those. But if you're only
+going to use the `SafeJSON` variants, the parsing from and to JSON
+can be defined in the `safeFrom` and `safeTo` methods.
+There might also be times when it is preferable to have the `SafeJSON`
+parsing be different from the `From-/ToJSON` parsing.
 
 While using `safeFromJSON` in a `parseJSON` definition is completely
 valid, it can be desirable to only have versioned sub-parsing
@@ -196,6 +200,11 @@ appropriate)
 
 _When defining `safeFrom` and `safeTo`, you need to use the
 `contain` function._
+
+Since version `1.0.0`, a few convenience functions have been
+added to make defining `safeFrom` and `safeTo` methods a lot
+easier, and to make the experience more similar to defining
+`parseJSON` and `toJSON`. (e.g. `containWithObject`, `.:$`, `.=$`, etc.)
 
 ---
 
@@ -285,6 +294,92 @@ your chain as soon as possible.
 
 As long as there is a version number in the JSON, though, vNil will not be
 attempted to be parsed, since "a version" doesn't match "no version".
+
+### Using `setVersion` and `removeVersion`
+
+These functions are new in `safe-json-1.0.0`, since the `FromJSON` and `ToJSON`
+constraints have been dropped from `SafeJSON`'s definition and thus it is not
+guaranteed you can use `Data.Aeson` functions to handle versionless JSON `Value`s.
+
+_CAUTION: Use these functions at your own risk!
+It is always best to use versioning if possible!_
+
+* `setVersion` will insert/override the given type's version in the given JSON `Value`.
+* `removeVersion` will remove all the `SafeJSON` versioning from the JSON `Value`
+
+#### `setVersion`
+
+Of course, you'd always like to have the correct version present in your `Value`s,
+but sometimes this is not appropriate or desireable. One example would be when
+parsing incoming JSON from third parties (e.g. customers), which you don't want
+to impose the `SafeJSON` versioning onto.
+
+Be warned this does only set the version at the top-level! `setVersion` does
+not recursively set versions! (i.e. if your `safeFrom` definition, for example,
+uses `safeFromJSON` when parsing certain fields, these fields will not get the
+correct version from using `setVersion` on the overall JSON `Value`)
+
+In these cases, it is recommended to use a `FromJSON` instance (which doesn't
+use `safeFromJSON` in its definition) for your incoming type, instead of `SafeJSON`.
+You can still use `SafeJSON` internally, because if the type has a `FromJSON`
+instance, the `SafeJSON` instance can just use that implementation for the
+`safeFrom` definition.
+
+This way you are guaranteed the only difference between `safeFromJSON` and
+`parseJSON` is the requirement of a version field in `safeFromJSON`'s case
+and it removes the need to use `setVersion` (which is preferable).
+
+```haskell
+GIVEN:
+
+data MyType
+instance SafeJSON MyType where
+  version = 0
+
+-- toJSON adds no version fields
+incomingJSON = toJSON [MyType, MyType]
+```
+
+```haskell
+WRONG: this will not parse using SafeJSON functions.
+
+λ> encode $ setVersion @MyType incomingJSON
+{
+  "~v": 0,
+  "~d": [
+    array_of_unversioned_MyTypes
+  ]
+}
+```
+
+```haskell
+RIGHT: This will parse using SafeJSON functions.
+
+λ> Just vals = parseMaybe safeFromJSON/parseJSON incomingJSON :: Maybe [Value]
+λ> encode $ setVersion @MyType <$> vals
+[
+  {
+    "my_type_field1": xxx,
+    "my_type_field2": xxx,
+    "!v": 0
+  },
+  {
+    "my_type_field1": xxx,
+    "my_type_field2": xxx,
+    "!v": 0
+  },
+]
+```
+
+#### `removeVersion`
+
+Conversely, `removeVersion` should, ideally, only be used when the JSON is
+leaving your application or platform and you don't want the `SafeJSON`
+versioning to be visible to the outside world.
+
+`removeVersion`, on the other hand, __does__ remove all version fields
+recursively, so `removeVersion . safeToJSON` will produce a JSON `Value`
+with all `"!v"`, `"~v"` and `"~d"` fields removed.
 
 ### Non-object versioning
 

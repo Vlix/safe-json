@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -69,6 +70,9 @@ module Data.SafeJSON.Test (
 
 
 import Data.Aeson.Types (parseEither)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Monoid ((<>))
+#endif
 import Data.Proxy
 import Data.SafeJSON.Internal
 import Test.Tasty (TestTree)
@@ -93,21 +97,21 @@ testConsistency' = flip checkConsistency $ \_ -> return ()
 
 -- | Tests that the following holds:
 --
---   prop> Just a == parseMaybe (safeFromJSON . safeToJSON) a
-testRoundTrip :: (Show a, Eq a, SafeJSON a) => a -> Assertion
-testRoundTrip a = "To JSON and back not consistent" `assertEqual` Right a $
+--   prop> Just a == parseMaybe safeFromJSON (safeToJSON a)
+testRoundTrip :: forall a. (Show a, Eq a, SafeJSON a) => a -> Assertion
+testRoundTrip a = (typeName (Proxy :: Proxy a) <> ": to JSON and back not consistent") `assertEqual` Right a $
     parseEither (safeFromJSON . safeToJSON) a
 
 -- | Tests that the following holds __for all @a@__:
 --
---   prop> Just a == parseMaybe (safeFromJSON . safeToJSON) a
+--   prop> Just a == parseMaybe safeFromJSON (safeToJSON a)
 testRoundTripProp' :: forall a. (Eq a, Show a, Arbitrary a, SafeJSON a) => Proxy a -> String -> TestTree
 testRoundTripProp' _ s = testProperty s $ \a ->
     Right (a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
 -- | Tests that the following holds for all @a@:
 --
---   prop> Just a == parseMaybe (safeFromJSON . safeToJSON) a
+--   prop> Just a == parseMaybe safeFromJSON (safeToJSON a)
 --
 --   === __Example usage:__
 --
@@ -121,7 +125,7 @@ testRoundTripProp s = testProperty s $ \a ->
 --   First argument is the older type which should turn into
 --   the second argument after migrating using 'migrate'.
 --
---   prop> Just (migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
+--   prop> Just (migrate a) == parseMaybe safeFromJSON (safeToJSON a)
 testMigration :: (Show a, Eq a, Migrate a) => MigrateFrom a -> a -> Assertion
 testMigration = assertEqual "Unexpected result of SafeJSON migration" . migrate
 
@@ -130,7 +134,7 @@ testMigration = assertEqual "Unexpected result of SafeJSON migration" . migrate
 --   The first argument here is the newer type, which will be migrated back
 --   to the expected second argument (older type).
 --
---   prop> Just (unReverse $ migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
+--   prop> Just (unReverse $ migrate a) == parseMaybe safeFromJSON (safeToJSON a)
 testReverseMigration :: (Show a, Eq a, Migrate (Reverse a)) => MigrateFrom (Reverse a) -> a -> Assertion
 testReverseMigration = assertEqual "Unexpected result of SafeJSON migration" . unReverse . migrate
 
@@ -170,7 +174,7 @@ type TestMigrate a b =
 --   through encoding and decoding to the newer type, is equivalent
 --   __for all @a@__.
 --
---   prop> Just (migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
+--   prop> Just (migrate a) == parseMaybe safeFromJSON (safeToJSON a)
 migrateRoundTripProp' :: forall a b. TestMigrate a b => Proxy (a,b) -> String -> TestTree
 migrateRoundTripProp' _ s = testProperty s $ \a ->
     Right (migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a
@@ -179,7 +183,7 @@ migrateRoundTripProp' _ s = testProperty s $ \a ->
 --   through encoding and decoding to the newer type, is equivalent
 --   __for all @a@__.
 --
---   prop> Just (migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
+--   prop> Just (migrate a) == parseMaybe safeFromJSON (safeToJSON a)
 --
 --   === __Example usage:__
 --
@@ -201,7 +205,7 @@ type TestReverseMigrate a b =
 -- | Similar to 'migrateRoundTripProp, but tests the migration from a newer type
 --   to the older type, in case of a @Migrate (Reverse a)@ instance.
 --
---   prop> Just (unReverse $ migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
+--   prop> Just (unReverse $ migrate a) == parseMaybe safeFromJSON (safeToJSON a)
 migrateReverseRoundTripProp' :: forall a b. TestReverseMigrate a b => Proxy (a,b) -> String -> TestTree
 migrateReverseRoundTripProp' _ s = testProperty s $ \a ->
     Right (unReverse $ migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a
@@ -209,7 +213,7 @@ migrateReverseRoundTripProp' _ s = testProperty s $ \a ->
 -- | Similar to 'migrateRoundTripProp', but tests the migration from a newer type
 --   to the older type, in case of a @Migrate (Reverse a)@ instance.
 --
---   prop> Just (unReverse $ migrate a) == parseMaybe (safeFromJSON . safeToJSON) a
+--   prop> Just (unReverse $ migrate a) == parseMaybe safeFromJSON (safeToJSON a)
 --
 --   === __Example usage:__
 --

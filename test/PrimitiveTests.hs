@@ -69,13 +69,15 @@ parseValueAnd t f = testCase (T.unpack t) $ do
 parseValue :: forall a. SafeJSON a => T.Text -> TestTree
 parseValue t = parseValueAnd t (const $ return () :: a -> IO ())
 
-fromJSONTest :: forall a. (SafeJSON a, Eq a, Show a) => T.Text -> TestTree
+fromJSONTest :: forall a. (A.FromJSON a, SafeJSON a, Eq a, Show a)
+             => T.Text -> TestTree
 fromJSONTest t = parseValueAnd t $ \val -> do
     let a = (parseEither A.parseJSON val :: Either String a)
         b = parseEither safeFromJSON val
     assertEqual "SafeJSON not equivalent to FromJSON" a b
 
-toJSONTest :: forall a. (SafeJSON a, Arbitrary a, Show a) => String -> TestTree
+toJSONTest :: forall a. (A.ToJSON a, SafeJSON a, Arbitrary a, Show a)
+           => String -> TestTree
 toJSONTest s = testProperty s $ \a -> A.toJSON a == safeToJSON (a :: a)
 
 
