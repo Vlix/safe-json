@@ -738,22 +738,22 @@ withContained f name prs = contain . f name prs
 containWithObject :: String -> (Object -> Parser a) -> Value -> Contained (Parser a)
 containWithObject = withContained withObject
 
--- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- | Similar to 'Data.Aeson.withArray', but 'contain'ed to be used
 -- in 'safeFrom' definitions
 containWithArray :: String -> (Array -> Parser a) -> Value -> Contained (Parser a)
 containWithArray = withContained withArray
 
--- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- | Similar to 'Data.Aeson.withText', but 'contain'ed to be used
 -- in 'safeFrom' definitions
 containWithText :: String -> (Text -> Parser a) -> Value -> Contained (Parser a)
 containWithText = withContained withText
 
--- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- | Similar to 'Data.Aeson.withScientific', but 'contain'ed to be used
 -- in 'safeFrom' definitions
 containWithScientific :: String -> (Scientific -> Parser a) -> Value -> Contained (Parser a)
 containWithScientific = withContained withScientific
 
--- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- | Similar to 'Data.Aeson.withBool', but 'contain'ed to be used
 -- in 'safeFrom' definitions
 containWithBool :: String -> (Bool -> Parser a) -> Value -> Contained (Parser a)
 containWithBool = withContained withBool

@@ -33,9 +33,52 @@ module Data.SafeJSON
     --   newer version) to the type, you can be sure that your programs
     --   will still parse the JSON of types it is expecting.
     , SafeJSON(version, kind, safeTo, safeFrom, objectProfile, typeName)
-    -- *** Contained
+    -- ** Contained
     , Contained
     , contain
+    -- ** Defining 'safeFrom' and 'safeTo'
+    --
+    -- | If the type doesn't already have 'Data.Aeson.FromJSON' and
+    --   'Data.Aeson.ToJSON' instances, the following functions can help
+    --   in defining the 'safeFrom' and 'safeTo' methods.
+    --
+    -- @
+    -- safeFrom = containWithObject "MyType" $ \o ->
+    --   MyType <$> o .:  "regular_value"
+    --          <*> o .:$ "safe_value"
+    --
+    -- safeTo (MyType regular safe) =
+    --   contain . object $
+    --     [ "regular_value" .=  regular
+    --     , "safe_value"    .=$ safe
+    --     ]
+    -- @
+
+    -- *** Inspecting values in 'safeFrom'
+    --
+    -- | The following functions are helpful when defining 'safeFrom'.
+    --   They are basically 'contain' composed with the corresponding
+    --   'Data.Aeson' function, so they can be used in the same fashion
+    --   as said 'Data.Aeson' function.
+    , containWithObject
+    , containWithArray
+    , containWithText
+    , containWithScientific
+    , containWithBool
+    -- *** Accessors
+    --
+    -- | These accessors can be used like their 'Data.Aeson' counterparts.
+    --   The only difference is that the expected value is parsed using
+    --   'safeFromJSON' instead of 'Data.Aeson.parseJSON'.
+    , (.:$)
+    , (.:$?)
+    , (.:$!)
+    -- *** Constructor for 'safeTo'
+    --
+    -- | This constructor of key-value pairs can be used exactly like
+    --   its 'Data.Aeson' counterpart ('Data.Aeson..='), but converts the
+    --   given value with 'safeToJSON' instead of 'Data.Aeson.toJSON'
+    , (.=$)
     -- ** Version
     --
     -- | All 'SafeJSON' instances have a 'version'. This version will be
@@ -92,3 +135,4 @@ module Data.SafeJSON
     ) where
 
 import Data.SafeJSON.Internal
+import Data.Aeson

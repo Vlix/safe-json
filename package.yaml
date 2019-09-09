@@ -1,5 +1,5 @@
 name:                safe-json
-version:             0.2.0
+version:             1.0.0
 github:              "Vlix/safe-json"
 license:             MIT
 author:              "Felix Paulusma"
@@ -79,7 +79,7 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - generic-arbitrary     >= 0.1.0    && < 0.2
-      - safe-json             >= 0.2.0    && < 0.3
+      - safe-json             >= 1.0      && < 1.1
       - quickcheck-instances  >= 0.3.16   && < 0.4
       - tasty
       - tasty-hunit
