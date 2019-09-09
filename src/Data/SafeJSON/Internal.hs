@@ -40,7 +40,7 @@ import Control.Applicative (Applicative(..), Const(..), (<|>))
 import Control.Monad (when)
 import Control.Monad.Fail (MonadFail)
 import Data.Aeson
-import Data.Aeson.Types (Parser)
+import Data.Aeson.Types (Parser, explicitParseField, explicitParseFieldMaybe, explicitParseFieldMaybe')
 import Data.Char (Char)
 import Data.DList as DList (DList, fromList)
 import Data.Fixed (Fixed, HasResolution)
@@ -723,6 +723,66 @@ versionFromKind _ = version
 
 getForwardKind :: Migrate (Reverse a) => Kind a -> Kind (MigrateFrom (Reverse a))
 getForwardKind _ = kind
+
+
+-- ---------------------- --
+--   Defining safeFrom    --
+-- ---------------------- --
+
+withContained :: (a -> b -> c -> m d) -> a -> b -> c -> Contained (m d)
+withContained f name prs = contain . f name prs
+
+
+-- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- in 'safeFrom' definitions
+containWithObject :: String -> (Object -> Parser a) -> Value -> Contained (Parser a)
+containWithObject = withContained withObject
+
+-- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- in 'safeFrom' definitions
+containWithArray :: String -> (Array -> Parser a) -> Value -> Contained (Parser a)
+containWithArray = withContained withArray
+
+-- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- in 'safeFrom' definitions
+containWithText :: String -> (Text -> Parser a) -> Value -> Contained (Parser a)
+containWithText = withContained withText
+
+-- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- in 'safeFrom' definitions
+containWithScientific :: String -> (Scientific -> Parser a) -> Value -> Contained (Parser a)
+containWithScientific = withContained withScientific
+
+-- | Similar to 'Data.Aeson.withObject', but 'contain'ed to be used
+-- in 'safeFrom' definitions
+containWithBool :: String -> (Bool -> Parser a) -> Value -> Contained (Parser a)
+containWithBool = withContained withBool
+
+-- | Similar to 'Data.Aeson..:', but uses `safeFromJSON` instead of parseJSON
+-- to parse the value in the given field.
+(.:$) :: SafeJSON a => Object -> Text -> Parser a
+(.:$) = explicitParseField safeFromJSON
+
+-- | Similar to 'Data.Aeson..:?', but uses `safeFromJSON` instead of parseJSON
+-- to maybe parse the value in the given field.
+(.:$?) :: SafeJSON a => Object -> Text -> Parser (Maybe a)
+(.:$?) = explicitParseFieldMaybe safeFromJSON
+
+-- | Similar to 'Data.Aeson..:!', but uses `safeFromJSON` instead of parseJSON
+-- to maybe parse the value in the given field.
+(.:$!) :: SafeJSON a => Object -> Text -> Parser (Maybe a)
+(.:$!) = explicitParseFieldMaybe' safeFromJSON
+
+
+-- -------------------- --
+--   Defining safeTo    --
+-- -------------------- --
+
+
+-- | Similarly to 'Data.Aeson..=', but uses 'safeToJSON' instead of toJSON
+-- to convert the value in that key-value pair.
+(.=$) :: (SafeJSON a, KeyValue kv) => Text -> a -> kv
+name .=$ val = name .= safeToJSON val
 
 
 -- ---------------------- --
