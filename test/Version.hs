@@ -48,12 +48,12 @@ setTest = testGroup "Set version"
         let obj2 = TestObject2 $ String "testing1"
         assertEqual "Should equal" obj2 to2
         assertBool "Should not equal" $ safeToJSON to2 /= val0
-        assertEqual "Version override failed" (safeToJSON obj2) (setVersion_ @(TestObject2 Value) val0)
+        assertEqual "Version override failed" (safeToJSON obj2) (setVersion @(TestObject2 Value) val0)
     , parseAnd "reSetVersionSimple" $ \(ta3, val1) -> do
         let arr3 = TestArray3 [0,1,2,3]
         assertEqual "Should equal" arr3 ta3
         assertBool "Should not equal" $ safeToJSON ta3 /= val1
-        assertEqual "Version override failed" (safeToJSON arr3) (setVersion_ @TestArray3 val1)
+        assertEqual "Version override failed" (safeToJSON arr3) (setVersion @TestArray3 val1)
     ]
   where go t = object [ "test" .= String t ]
 
@@ -68,30 +68,30 @@ removeTest = testGroup "Remove version"
 
 -- | Given a field in the "version.json" object, parses as
 -- the given type, but hardsets version before doing so.
-parseSetVersion :: forall a. (Eq a, Show a, SafeJSON a) => Text -> a -> TestTree
+parseSetVersion :: forall a. SafeJSON a => Text -> a -> TestTree
 parseSetVersion t val = parseAnd t go
   where safeVal = safeToJSON val
         go (with,without) = do
           assertEqual "With: as regular" safeVal with
-          assertEqual "Without: after version added" safeVal $ setVersion_ @a without
+          assertEqual "Without: after version added" safeVal $ setVersion @a without
 
 -- | Like 'parseSetVersion', but expects to fail on the second.
-parseSetVersionFail :: forall a. (Eq a, Show a, SafeJSON a) => Text -> a -> Value -> TestTree
+parseSetVersionFail :: forall a. SafeJSON a => Text -> a -> Value -> TestTree
 parseSetVersionFail t val actual = parseAnd t go
   where safeVal = safeToJSON val
         err HUnitFailure{} = return True
         go (with,without) = do
           assertEqual "With: as regular" safeVal with
           failed <- handle err $ do
-              assertEqual "Without: after version added" safeVal $ setVersion_ @a without
+              assertEqual "Without: after version added" safeVal $ setVersion @a without
               return False
           when (not failed) $ assertFailure "Expected to fail"
-          assertEqual "Unexpected behaviour" actual $ setVersion_ @a without
+          assertEqual "Unexpected behaviour" actual $ setVersion @a without
 
 -- | Given a field in the "version.json" object, tries to
 -- compare the plain JSON with the (removeVersion . safeToJSON)
 -- 'Value' of the provided type.
-parseRemoveVersion :: forall a. (Eq a, Show a, SafeJSON a) => Text -> a -> TestTree
+parseRemoveVersion :: forall a. SafeJSON a => Text -> a -> TestTree
 parseRemoveVersion t val = parseAnd t go
   where safeVal = safeToJSON val
         go (with,without) = do

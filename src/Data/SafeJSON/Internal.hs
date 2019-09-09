@@ -235,6 +235,27 @@ newtype Version a = Version {unVersion :: Maybe Int32}
 noVersion :: Version a
 noVersion = Version Nothing
 
+-- | Same as 'setVersion', but requires a 'Version' parameter.
+--
+-- >>> 'encode' $ 'setVersion'' (version :: 'Version' Test) val
+-- "{\"~v\":0,\"~d\":\"test\"}"
+--
+-- @since 1.0.0
+setVersion' :: forall a. SafeJSON a => Version a -> Value -> Value
+setVersion' (Version mVersion) val =
+  case mVersion of
+    Nothing -> val
+    Just i -> case val of
+      Object o ->
+          let vField = maybe versionField
+                             (const dataVersionField)
+                             $ dataVersionField `HM.lookup` o
+          in Object $ HM.insert vField (toJSON i) o
+      other -> object
+          [ dataVersionField .= i
+          , dataField .= other
+          ]
+
 -- | /CAUTION: Only use this function if you know what you're doing./
 --   /The version will be set top-level, without inspection of the 'Value'!/
 --
@@ -254,42 +275,21 @@ noVersion = Version Nothing
 --
 -- {-# LANGUAGE TypeApplications#-}
 -- data Test = Test String
--- instance 'SafeJSON' Test
+-- instance 'SafeJSON' Test where ...
 --
 -- >>> val = 'Data.Aeson.String' "test" :: 'Value'
 -- String "test"
 -- >>> 'encode' val
 -- "\"test\""
--- >>> 'encode' $ 'setVersion' (version @Test) val
+-- >>> 'encode' $ 'setVersion' @Test val
 -- "{\"~v\":0,\"~d\":\"test\"}"
--- >>> parseMaybe 'safeFromJSON' $ 'setVersion' (version @Test) val
+-- >>> parseMaybe 'safeFromJSON' $ 'setVersion' @Test val
 -- Just (Test "test")
 -- @
 --
 -- @since 1.0.0
-setVersion :: forall a. SafeJSON a => Version a -> Value -> Value
-setVersion (Version mVersion) val =
-  case mVersion of
-    Nothing -> val
-    Just i -> case val of
-      Object o ->
-          let vField = maybe versionField
-                             (const dataVersionField)
-                             $ dataVersionField `HM.lookup` o
-          in Object $ HM.insert vField (toJSON i) o
-      other -> object
-          [ dataVersionField .= i
-          , dataField .= other
-          ]
-
--- | Same as 'setVersion', but uses @TypeApplications@
---
--- >>> 'encode' $ 'setVersion_' @Test val
--- "{\"~v\":0,\"~d\":\"test\"}"
---
--- @since 1.0.0
-setVersion_ :: forall a. SafeJSON a => Value -> Value
-setVersion_ = setVersion (version @a)
+setVersion :: forall a. SafeJSON a => Value -> Value
+setVersion = setVersion' (version @a)
 
 -- | /CAUTION: Only use this function if you know what you're doing./
 --
@@ -423,7 +423,7 @@ safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case thisKind of
     Base          | i == Nothing -> tojson
     Extended Base | i == Nothing -> tojson
-    _ -> setVersion_ @a tojson
+    _ -> setVersion @a tojson
   where tojson = unsafeUnpack $ safeTo a
         Version i = version :: Version a
         thisKind = kind :: Kind a

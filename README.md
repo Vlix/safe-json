@@ -297,7 +297,7 @@ _CAUTION: Use these functions at your own risk!
 It is always best to use versioning if possible!_
 
 * `setVersion` will insert/override the given type's version in the given JSON `Value`.
-* `removeVersion` will remove the `SafeJSON` versioning from the JSON `Value`
+* `removeVersion` will remove all the `SafeJSON` versioning from the JSON `Value`
 
 #### `setVersion`
 
