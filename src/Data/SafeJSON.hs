@@ -7,7 +7,7 @@ Stability   : experimental
 
 Please read the
 
-__[README on GitHub](https://github.com/Vlix/safe-json/blob/v0.1.0/README.md)__
+__[README on GitHub](https://github.com/Vlix/safe-json/blob/v1.0.0/README.md)__
 
 for an extensive explanation of this library, why and how to use it,
 and examples.
