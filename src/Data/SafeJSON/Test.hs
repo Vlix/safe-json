@@ -162,10 +162,9 @@ migrateReverseRoundTrip newType = "Unexpected result of decoding encoded newer t
 -- | Constraints for migrating from a previous version
 type TestMigrate a b =
     ( Eq a
-    , Show (MigrateFrom a)
-    , Arbitrary (MigrateFrom a)
+    , Show b
+    , Arbitrary b
     , SafeJSON a
-    , SafeJSON (MigrateFrom a)
     , Migrate a
     , MigrateFrom a ~ b
     )
@@ -195,8 +194,8 @@ migrateRoundTripProp s = testProperty s $ \a ->
 -- | Constraints for migrating from a future version
 type TestReverseMigrate a b =
     ( Eq a
-    , Show (MigrateFrom (Reverse a))
-    , Arbitrary (MigrateFrom (Reverse a))
+    , Show b
+    , Arbitrary b
     , SafeJSON a
     , Migrate (Reverse a)
     , MigrateFrom (Reverse a) ~ b
