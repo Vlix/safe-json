@@ -1,5 +1,5 @@
 {-|
-Module      : Data.SafeJSON.Instances
+Module      : Data.SafeJSON
 Copyright   : (c) 2019 Felix Paulusma
 License     : MIT
 Maintainer  : felix.paulusma@gmail.com
@@ -104,12 +104,12 @@ module Data.SafeJSON
     -- * Extensions (see 'extension' and 'extended_extension') tell the
     --   system that there exists at least one previous version of the data
     --   type which should be migrated from if needed.
-    --   (This requires the data type to also have a @Migrate a@ instance)
+    --   (This requires the data type to also have a @'Migrate' a@ instance)
     --
     -- * Forward extensions (see 'extended_base' and 'extended_extension')
     --   tell the system there exists at least one next version from which
     --   the data type can be reverse-migrated.
-    --   (This requires the data type to also have a @Migrate (Reverse a)@
+    --   (This requires the data type to also have a @'Migrate' ('Reverse' a)@
     --   instance)
     , Kind
     , base

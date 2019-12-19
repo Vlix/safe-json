@@ -21,7 +21,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-|
 Module      : Data.SafeJSON.Internal
 Copyright   : (c) 2019 Felix Paulusma
@@ -161,8 +160,8 @@ class SafeJSON a where
 -- | This instance is needed to handle the migration between
 --   older and newer versions.
 --
---   Note that, where @(Migrate a)@ migrates from the previous
---   version to the type @a@, @(Migrate (Reverse a))@ migrates
+--   Note that, where @('Migrate' a)@ migrates from the previous
+--   version to the type @a@, @('Migrate' ('Reverse' a))@ migrates
 --   from the future version to the type @a@.
 --
 -- === __Example__
@@ -170,22 +169,22 @@ class SafeJSON a where
 -- __Two types that can migrate to each other.__
 --
 -- (Don't forget to give @OldType@ one of the @extended@ 'kind's,
--- and @NewType@ one of the @extension@ kinds.)
+-- and @NewType@ one of the @extension@ 'kind's.)
 --
 -- @
 -- instance 'Migrate' NewType where
 --   type 'MigrateFrom' NewType = OldType
 --   'migrate' OldType = NewType
 --
--- instance 'Migrate' (Reverse OldType) where
---   type 'MigrateFrom' (Reverse OldType) = NewType
---   'migrate' NewType = Reverse OldType
+-- instance 'Migrate' ('Reverse' OldType) where
+--   type 'MigrateFrom' ('Reverse' OldType) = NewType
+--   'migrate' NewType = 'Reverse' OldType
 -- @
 class SafeJSON (MigrateFrom a) => Migrate a where
   -- | The type from which will be migrated to type @a@
   type MigrateFrom a
   -- | The migration from the previous version to the
-  --   current type @a@. OR, in case of a @(Reverse a)@,
+  --   current type @a@. OR, in case of a @('Reverse' a)@,
   --   the migration from the future version back to
   --   the current type @a@
   migrate :: MigrateFrom a -> a
@@ -203,17 +202,10 @@ newtype Contained a = Contained {unsafeUnpack :: a}
 contain :: a -> Contained a
 contain = Contained
 
-{-
--- Opens up mis-use of 'safeFrom' / 'safeTo', better to not
-instance Applicative Contained where
-  pure = contain
-  Contained f <*> Contained a = Contained $ f a
--}
-
 -- | A simple numeric version id.
 --
 --   'Version' has a 'Num' instance and should be
---   declared using integer literals: @version = 2@
+--   declared using integer literals: @'version' = 2@
 newtype Version a = Version {unVersion :: Maybe Int32}
   deriving (Eq)
 
@@ -227,16 +219,16 @@ newtype Version a = Version {unVersion :: Maybe Int32}
 --   when a format is already in use, but you still want to
 --   be able to 'migrate' from it to a newer type or format.
 --
---   /N.B./ @version = noVersion@ /is distinctively different/
---   /from/ @version = 0@/, which will add a version tag with/
+--   /N.B./ @'version' = 'noVersion'@ /is distinctively different/
+--   /from/ @'version' = 0@/, which will add a version tag with/
 --   /the number 0 (zero), whereas/ 'noVersion' /will not add a/
---   /version tag./
+--   /'version' tag./
 noVersion :: Version a
 noVersion = Version Nothing
 
 -- | Same as 'setVersion', but requires a 'Version' parameter.
 --
--- >>> 'encode' $ 'setVersion'' (version :: 'Version' Test) val
+-- >>> 'encode' $ 'setVersion'' ('version' :: 'Version' Test) val
 -- "{\"~v\":0,\"~d\":\"test\"}"
 --
 -- @since 1.0.0
@@ -272,7 +264,7 @@ setVersion' (Version mVersion) val =
 -- @
 -- USAGE:
 --
--- {-# LANGUAGE TypeApplications#-}
+-- {-\# LANGUAGE TypeApplications \#-}
 -- data Test = Test String
 -- instance 'SafeJSON' Test where ...
 --
@@ -280,9 +272,9 @@ setVersion' (Version mVersion) val =
 -- String "test"
 -- >>> 'encode' val
 -- "\"test\""
--- >>> 'encode' $ 'setVersion' @Test val
+-- >>> 'encode' $ 'setVersion' \@Test val
 -- "{\"~v\":0,\"~d\":\"test\"}"
--- >>> parseMaybe 'safeFromJSON' $ 'setVersion' @Test val
+-- >>> parseMaybe 'safeFromJSON' $ 'setVersion' \@Test val
 -- Just (Test "test")
 -- @
 --
@@ -398,7 +390,7 @@ dataField = "~d"
 --
 --   'safeToJSON' will add a version tag to the 'Data.Aeson.Value' created.
 --   If the 'Data.Aeson.Value' resulting from 'safeTo' (by default the same as 'toJSON')
---   is an @Object@, an extra field with the version number will be added.
+--   is an @'Object'@, an extra field with the version number will be added.
 --
 -- > Example value:
 -- >   {"type":"test", "data":true}
@@ -406,7 +398,7 @@ dataField = "~d"
 -- > Resulting object:
 -- >   {"!v": 1, "type":"test", "data":true}
 --
---   If the resulting 'Value' is not an @Object@, it will be wrapped
+--   If the resulting 'Value' is not an @'Object'@, it will be wrapped
 --   in one, with a version field:
 --
 -- > Example value:
@@ -609,7 +601,7 @@ showVs :: [(Maybe Int32, String)] -> String
 showVs = List.intercalate ", " . fmap go
   where go (mi, s) = mconcat ["(", showV mi, ", ", s, ")"]
 
--- | @Version Nothing@ shows as @null@
+-- | @'Version' Nothing@ shows as @null@
 instance Show ProfileVersions where
   show (ProfileVersions cur sup) = mconcat
       [ "version ", showV cur, ": ["

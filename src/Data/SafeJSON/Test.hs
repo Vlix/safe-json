@@ -154,7 +154,7 @@ migrateRoundTrip oldType = "Unexpected result of decoding encoded older type" `a
     parseEither (safeFromJSON . safeToJSON) oldType
 
 -- | Similar to 'migrateRoundTrip', but tests the migration from a newer type
---   to the older type, in case of a @Migrate (Reverse a)@ instance
+--   to the older type, in case of a @'Migrate' ('Reverse' a)@ instance
 migrateReverseRoundTrip :: forall a. (Eq a, Show a, SafeJSON a, Migrate (Reverse a)) => MigrateFrom (Reverse a) -> Assertion
 migrateReverseRoundTrip newType = "Unexpected result of decoding encoded newer type" `assertEqual` Right (unReverse $ migrate newType :: a) $
     parseEither (safeFromJSON . safeToJSON) newType
@@ -201,8 +201,8 @@ type TestReverseMigrate a b =
     , MigrateFrom (Reverse a) ~ b
     )
 
--- | Similar to 'migrateRoundTripProp, but tests the migration from a newer type
---   to the older type, in case of a @Migrate (Reverse a)@ instance.
+-- | Similar to 'migrateRoundTripProp', but tests the migration from a newer type
+--   to the older type, in case of a @'Migrate' ('Reverse' a)@ instance.
 --
 --   prop> Just (unReverse $ migrate a) == parseMaybe safeFromJSON (safeToJSON a)
 migrateReverseRoundTripProp' :: forall a b. TestReverseMigrate a b => Proxy (a,b) -> String -> TestTree
@@ -210,7 +210,7 @@ migrateReverseRoundTripProp' _ s = testProperty s $ \a ->
     Right (unReverse $ migrate a :: a) == parseEither (safeFromJSON . safeToJSON) a
 
 -- | Similar to 'migrateRoundTripProp', but tests the migration from a newer type
---   to the older type, in case of a @Migrate (Reverse a)@ instance.
+--   to the older type, in case of a @'Migrate' ('Reverse' a)@ instance.
 --
 --   prop> Just (unReverse $ migrate a) == parseMaybe safeFromJSON (safeToJSON a)
 --
