@@ -58,8 +58,8 @@ module Data.SafeJSON
     --
     -- | The following functions are helpful when defining 'safeFrom'.
     --   They are basically 'contain' composed with the corresponding
-    --   'Data.Aeson' function, so they can be used in the same fashion
-    --   as said 'Data.Aeson' function.
+    --   "Data.Aeson" function, so they can be used in the same fashion
+    --   as said "Data.Aeson" function.
     , containWithObject
     , containWithArray
     , containWithText
@@ -67,7 +67,7 @@ module Data.SafeJSON
     , containWithBool
     -- *** Accessors
     --
-    -- | These accessors can be used like their 'Data.Aeson' counterparts.
+    -- | These accessors can be used like their "Data.Aeson" counterparts.
     --   The only difference is that the expected value is parsed using
     --   'safeFromJSON' instead of 'Data.Aeson.parseJSON'.
     , (.:$)
@@ -76,7 +76,7 @@ module Data.SafeJSON
     -- *** Constructor for 'safeTo'
     --
     -- | This constructor of key-value pairs can be used exactly like
-    --   its 'Data.Aeson' counterpart ('Data.Aeson..='), but converts the
+    --   its "Data.Aeson" counterpart ('Data.Aeson..='), but converts the
     --   given value with 'safeToJSON' instead of 'Data.Aeson.toJSON'
     , (.=$)
     -- ** Version

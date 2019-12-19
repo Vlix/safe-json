@@ -262,7 +262,7 @@ setVersion' (Version mVersion) val =
 --   (cf. 'removeVersion') In some rare cases, you might want to interpret
 --   a versionless 'Value' as a certain type/version. 'setVersion' allows
 --   you to (unsafely) insert a version field.
-
+--
 --   __If possible, it is advised to use a 'FromJSON' instance instead.__
 --   (One that doesn't also use `safeFromJSON` in its methods!)
 --
