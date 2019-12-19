@@ -8,7 +8,6 @@ import Control.Applicative (Const)
 import Data.Aeson (DotNetTime, Value, (.:))
 import qualified Data.Aeson as A
 import Data.Aeson.Types (parseEither)
-import Data.Char (Char)
 import Data.DList (DList)
 import Data.Fixed (E12, Fixed)
 import Data.Functor.Identity (Identity)

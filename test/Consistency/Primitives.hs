@@ -4,7 +4,6 @@ module Consistency.Primitives where
 
 import Control.Applicative (Const)
 import Data.Aeson (DotNetTime, Value)
-import Data.Char (Char)
 import Data.DList (DList)
 import Data.Fixed (E12, Fixed)
 import Data.Functor.Identity (Identity)

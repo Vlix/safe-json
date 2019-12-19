@@ -135,4 +135,3 @@ module Data.SafeJSON
     ) where
 
 import Data.SafeJSON.Internal
-import Data.Aeson

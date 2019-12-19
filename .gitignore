@@ -23,3 +23,5 @@ cabal.project.local~
 *~
 *.cabal
 *.lock
+*.sublime-project
+*.sublime-workspace

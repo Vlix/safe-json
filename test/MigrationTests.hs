@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -159,7 +160,11 @@ instance Arbitrary VersionedPrim where arbitrary = VersionedPrim . pack <$> arbi
 newtype ExpectedError = EE String deriving (Eq, Show)
 
 vNilError :: ExpectedError
+#if MIN_VERSION_aeson(1,4,6)
+vNilError = EE "Error in $: key \"int\" not found"
+#else
 vNilError = EE "Error in $: key \"int\" not present"
+#endif
 
 noParserError :: String -> ExpectedError
 noParserError = EE . mappend "Error in $: Cannot find parser associated with: "
