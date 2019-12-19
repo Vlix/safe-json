@@ -41,7 +41,6 @@ import Control.Monad (when)
 import Control.Monad.Fail (MonadFail)
 import Data.Aeson
 import Data.Aeson.Types (Parser, explicitParseField, explicitParseFieldMaybe, explicitParseFieldMaybe')
-import Data.Char (Char)
 import Data.DList as DList (DList, fromList)
 import Data.Fixed (Fixed, HasResolution)
 import Data.Functor.Identity (Identity(..))
@@ -53,7 +52,7 @@ import Data.HashMap.Strict as HM (insert, size)
 import qualified Data.HashMap.Strict as HM (HashMap, delete, fromList, lookup, toList)
 import qualified Data.HashSet as HS (HashSet, fromList, toList)
 import Data.Int
-import Data.IntMap (IntMap)
+import Data.IntMap as IM (IntMap, fromList)
 import Data.IntSet (IntSet)
 import qualified Data.List as List (intercalate, lookup)
 import Data.List.NonEmpty (NonEmpty(..))
@@ -970,10 +969,17 @@ instance SafeJSON a => SafeJSON (T a) where {       \
   typeName = typeName1;                             \
   version = noVersion }
 
-BASIC_UNARY_FUNCTOR(IntMap)
 BASIC_UNARY_FUNCTOR(NonEmpty)
 BASIC_UNARY_FUNCTOR(Seq)
 BASIC_UNARY_FUNCTOR(Tree)
+
+instance (SafeJSON a) => SafeJSON (IntMap a) where
+  safeFrom val = contain $ do
+      vs <- parseJSON val
+      IM.fromList <$> mapM safeFromJSON vs
+  safeTo as = contain . toJSON $ safeToJSON <$> as
+  typeName = typeName1
+  version = noVersion
 
 instance (SafeJSON a) => SafeJSON (DList a) where
   safeFrom val = contain $ do
