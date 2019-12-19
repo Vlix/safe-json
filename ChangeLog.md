@@ -1,5 +1,15 @@
 # Changelog for safe-json
 
+## 1.1.0
+
+* update for GHC 8.8.1 #15
+    * loosened dependency restriction on `time`
+    * fixed instance for IntMap
+* DRY-er `TestMigrate` and `TestReverseMigrate` type synonyms #17 Thanks to @blinkytoy
+* fixed documentation #17 Thanks to @blinkytoy
+    * broken links to modules
+    * `setVersion`'s documentation only showing half
+
 ## 1.0.0
 
 * Removed `FromJSON`/`ToJSON` dependecy on `SafeJSON`
