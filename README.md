@@ -1,4 +1,10 @@
-# safe-json [![Build Status](https://travis-ci.org/Vlix/safe-json.svg?branch=master)](https://travis-ci.org/Vlix/safe-json)
+[![Build Status](https://secure.travis-ci.org/Vlix/safe-json.svg?branch=master)](https://travis-ci.org/Vlix/safe-json)
+[![Hackage](https://img.shields.io/hackage/v/safe-json.svg)](https://hackage.haskell.org/package/safe-json)
+[![Stackage LTS](http://stackage.org/package/safe-json/badge/lts)](http://stackage.org/lts/package/safe-json)
+[![Stackage Nightly](http://stackage.org/package/safe-json/badge/nightly)](http://stackage.org/nightly/package/safe-json)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+# safe-json
 
 #### Automatic JSON format versioning
 
