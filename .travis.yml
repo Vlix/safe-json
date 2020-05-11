@@ -8,7 +8,11 @@ matrix:
   - env: ARGS="--resolver lts-12 --stack-yaml stack_lts-12.yaml"
   - env: ARGS="--resolver lts-13"
   - env: ARGS="--resolver lts-14"
-  - env: ARGS="--resolver nightly-2019-12-13"
+  - env: ARGS="--resolver lts-15"
+  - env: ARGS="--resolver nightly"
+
+  allow_failures:
+  - env: ARGS="--resolver nightly"
 
 before_install:
 # Download and unpack the stack executable
