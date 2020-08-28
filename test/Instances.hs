@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Instances (
     DotNetTime()
@@ -48,6 +49,7 @@ instance Arbitrary Value where
     ]
   shrink = genericShrink
 
+#if !MIN_VERSION_aeson(1,5,2)
 -- | This is here just to test 'Set' in 'parseCollection'
 instance Ord Value where
   Null `compare` Null = EQ
@@ -67,3 +69,4 @@ instance Ord Value where
   String{} `compare` _        = LT
   Array{}  `compare` Object{} = LT
   _        `compare` _        = GT
+#endif
