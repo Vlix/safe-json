@@ -4,7 +4,6 @@
 module SafeAeson where
 
 
-import Data.Aeson (Value)
 import qualified Data.Aeson as A
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS

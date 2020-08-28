@@ -6,10 +6,8 @@ module Version where
 
 import Control.Exception (handle)
 import Control.Monad (when)
-import Data.Aeson (Value, (.:), (.=))
 import qualified Data.Aeson as A
 import Data.Aeson.Safe
-import Data.Aeson.Types (parseEither)
 import Data.Text as T
 import Test.Tasty as Tasty
 import Test.Tasty.HUnit as Tasty
