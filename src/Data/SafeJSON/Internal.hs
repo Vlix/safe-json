@@ -9,17 +9,14 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-|
 Module      : Data.SafeJSON.Internal
@@ -50,7 +47,7 @@ import Data.Hashable (Hashable)
 import Data.HashMap.Strict as HM (insert, size)
 import qualified Data.HashMap.Strict as HM (HashMap, delete, fromList, lookup, toList)
 import qualified Data.HashSet as HS (HashSet, fromList, toList)
-import Data.Int
+import Data.Int (Int16, Int32, Int64, Int8)
 import Data.IntMap as IM (IntMap, fromList)
 import Data.IntSet (IntSet)
 import qualified Data.List as List (intercalate, lookup)
@@ -62,7 +59,7 @@ import Data.Monoid (Dual(..))
 #else
 import Data.Monoid (Dual(..), (<>))
 #endif
-import Data.Proxy
+import Data.Proxy (Proxy (..))
 import Data.Ratio (Ratio)
 import Data.Scientific (Scientific)
 import Data.Semigroup (First(..), Last(..), Max(..), Min(..))
@@ -71,6 +68,13 @@ import qualified Data.Set as S
 import Data.Text as T (Text)
 import qualified Data.Text.Lazy as LT (Text)
 import Data.Time
+    ( Day,
+      DiffTime,
+      NominalDiffTime,
+      UTCTime,
+      LocalTime,
+      TimeOfDay,
+      ZonedTime )
 import Data.Tree (Tree)
 import Data.Typeable (Typeable, typeRep)
 import Data.UUID.Types (UUID)
@@ -196,7 +200,7 @@ class SafeJSON (MigrateFrom a) => Migrate a where
 --   'safeToJSON'.
 newtype Contained a = Contained {unsafeUnpack :: a}
   -- Opens up mis-use of 'safeFrom' / 'safeTo', better to not
-  -- deriving (Functor)
+  -- derive a Functor instance
 
 -- | Used when defining 'safeFrom' or 'safeTo'.
 contain :: a -> Contained a
@@ -412,8 +416,8 @@ dataField = "~d"
 --   __your instances in a production setting.__
 safeToJSON :: forall a. SafeJSON a => a -> Value
 safeToJSON a = case thisKind of
-    Base          | i == Nothing -> tojson
-    Extended Base | i == Nothing -> tojson
+    Base          | isNothing i -> tojson
+    Extended Base | isNothing i -> tojson
     _ -> setVersion @a tojson
   where tojson = unsafeUnpack $ safeTo a
         Version i = version :: Version a
@@ -441,8 +445,8 @@ safeFromJSON :: forall a. SafeJSON a => Value -> Parser a
 safeFromJSON origVal = checkConsistency p $ \vs -> do
     let hasVNil = noVersionPresent vs
     case origKind of
-      Base       | i == Nothing -> unsafeUnpack $ safeFrom origVal
-      Extended k | i == Nothing -> extendedCase hasVNil k
+      Base       | isNothing i -> unsafeUnpack $ safeFrom origVal
+      Extended k | isNothing i -> extendedCase hasVNil k
       _ -> regularCase hasVNil
   where Version i = version :: Version a
         origKind = kind :: Kind a
@@ -682,7 +686,7 @@ invalidChain _ =
           ]
       | otherwise = case k of
           Base -> Nothing
-          Extends{} | i == Nothing -> Just $ mconcat
+          Extends{} | isNothing i -> Just $ mconcat
               [ typeName p, " has defined 'version = noVersion', "
               , " but it's 'kind' definition is not 'base' or 'extended_base'"
               ]
@@ -937,10 +941,10 @@ instance (SafeJSON a, VG.Vector VU.Vector a) => SafeJSON (VU.Vector a) where
   typeName = typeName1
   version = noVersion
 
--- | Lists and any other "container" are seen as only that:
+-- | Lists and any other \"container\" are seen as only that:
 --   a container for 'SafeJSON' values.
 --
---   "Containers" are implemented in such a way that when parsing
+--   \"Containers\" are implemented in such a way that when parsing
 --   a collection of all migratable versions, the result will be
 --   a list of that type where each element has been migrated as
 --   appropriate.
@@ -954,9 +958,8 @@ instance  {-# OVERLAPPABLE #-} SafeJSON a => SafeJSON [a] where
 
 #define BASIC_UNARY_FUNCTOR(T)                      \
 instance SafeJSON a => SafeJSON (T a) where {       \
-  safeFrom val = contain $ do {                     \
-      vs <- parseJSON val;                          \
-      mapM safeFromJSON vs };                       \
+  safeFrom val = contain $                          \
+      parseJSON val >>= mapM safeFromJSON;          \
   safeTo as = contain . toJSON $ safeToJSON <$> as; \
   typeName = typeName1;                             \
   version = noVersion }
