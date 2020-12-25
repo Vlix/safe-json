@@ -1,0 +1,122 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: b7372a5a81832b55c168d9e63f92b1a4899ff44b801f2be33d799d7ca2902655
+
+name:           safe-json
+version:        1.1.1.1
+synopsis:       Automatic JSON format versioning
+description:    This library aims to make the updating of JSON formats or contents, while keeping backward compatibility, as painless as possible. The way this is achieved is through versioning and defined migration functions to migrate older (or newer) versions to the one used.
+                .
+                The library mainly consists of two classes:
+                .
+                * @SafeJSON a@: Defines the version of @a@ and if (and how) it is migratable.
+                .
+                * @Migrate a@: Defines the data type (@MigrateFrom a@) that can be migrated to @a@ and how to migrate from that type.
+                .
+                Using these two classes, JSON serialized data types will stay parsable, even after format changes.
+                .
+                For a more in-depth explanation and examples, please see the README at <https://github.com/Vlix/safe-json#readme>
+category:       JSON
+homepage:       https://github.com/Vlix/safe-json#readme
+bug-reports:    https://github.com/Vlix/safe-json/issues
+author:         Felix Paulusma
+maintainer:     felix.paulusma@gmail.com
+copyright:      2019 Felix Paulusma
+license:        MIT
+license-file:   LICENSE
+tested-with:    GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4
+build-type:     Simple
+extra-source-files:
+    README
+    ChangeLog.md
+    test/json/badsimpleversion.json
+    test/json/noversion.json
+    test/json/primitives.json
+    test/json/setremoveversion.json
+    test/json/simpleversion.json
+    test/json/simpleversion1.json
+    test/json/version0.json
+    test/json/version1.json
+    test/json/version2.json
+    test/json/version3.json
+    test/json/version4-2.json
+    test/json/version4.json
+
+source-repository head
+  type: git
+  location: https://github.com/Vlix/safe-json
+
+library
+  exposed-modules:
+      Data.Aeson.Safe
+      Data.SafeJSON
+      Data.SafeJSON.Test
+  other-modules:
+      Data.SafeJSON.Internal
+      Paths_safe_json
+  hs-source-dirs:
+      src
+  default-extensions: OverloadedStrings
+  build-depends:
+      aeson >=1.4.1 && <1.6
+    , base >=4.9 && <5
+    , bytestring >=0.10.8.1 && <0.11
+    , containers >=0.5.7.1 && <0.7
+    , dlist >=0.8.0.3 && <2
+    , hashable >=1.2.6.1 && <1.4
+    , scientific >=0.3.5.2 && <0.4
+    , tasty >=0.11.3 && <1.5
+    , tasty-hunit >=0.9.2 && <0.11
+    , tasty-quickcheck >=0.8.4 && <0.11
+    , text >=1.2.3 && <1.3
+    , time >=1.6.0.1 && <1.10
+    , unordered-containers >=0.2.9 && <0.3
+    , uuid-types >=1.0.3 && <1.1
+    , vector >=0.12.0.1 && <0.13
+  default-language: Haskell2010
+
+test-suite safe-json-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Consistency.Migrations
+      Consistency.Primitives
+      ConsistencyTests
+      Instances
+      MigrationTests
+      PrimitiveTests
+      SafeAeson
+      Types
+      Version
+      VersionNum
+      Paths_safe_json
+  hs-source-dirs:
+      test
+  default-extensions: OverloadedStrings
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson >=1.4.1 && <1.6
+    , base >=4.9 && <5
+    , bytestring >=0.10.8.1 && <0.11
+    , containers >=0.5.7.1 && <0.7
+    , dlist >=0.8.0.3 && <2
+    , generic-arbitrary >=0.1.0 && <0.2
+    , hashable >=1.2.6.1 && <1.4
+    , quickcheck-instances >=0.3.16 && <0.4
+    , safe-json >=1.0 && <1.2
+    , scientific >=0.3.5.2 && <0.4
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , temporary >=1.2.1.1 && <1.4
+    , text >=1.2.3 && <1.3
+    , time >=1.6.0.1 && <1.10
+    , unordered-containers >=0.2.9 && <0.3
+    , uuid >=1.3.13 && <1.4
+    , uuid-types >=1.0.3 && <1.1
+    , vector >=0.12.0.1 && <0.13
+  default-language: Haskell2010

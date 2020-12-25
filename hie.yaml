@@ -1,0 +1,12 @@
+cradle:
+  multi:
+    # - path: "./test/testdata"
+      # config: { cradle: { none } }
+    - path: "./"
+      config:
+        cradle:
+          stack:
+            - path: "./src"
+              component: "safe-json:lib"
+            - path: "./test"
+              component: "safe-json:test:safe-json-test"

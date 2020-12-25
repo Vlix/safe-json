@@ -1,5 +1,10 @@
 # Changelog for safe-json
 
+## 1.1.1.1
+
+* loosened dependecy restriction on `tasty`
+* fixed some documentation
+
 ## 1.1.1
 
 * Fix clash in `test/Instances.hs` of `Ord` instance for `Data.Aeson.Value` [#23]

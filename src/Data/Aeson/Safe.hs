@@ -79,7 +79,7 @@ import qualified Data.Aeson as A (
   , encode
   , encodeFile
   )
-import Data.Aeson.Types
+import Data.Aeson.Types (Parser, parseEither, parseMaybe)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.SafeJSON

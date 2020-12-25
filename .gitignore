@@ -21,7 +21,7 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 *~
-*.cabal
 *.lock
 *.sublime-project
 *.sublime-workspace
+*.code-workspace
