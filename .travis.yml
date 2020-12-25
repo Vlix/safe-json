@@ -3,12 +3,13 @@ language: minimal
 
 matrix:
   include:
-  - env: ARGS="--resolver lts-9  --stack-yaml stack_lts-9.yaml"
-  - env: ARGS="--resolver lts-11 --stack-yaml stack_lts-12.yaml"
-  - env: ARGS="--resolver lts-12 --stack-yaml stack_lts-12.yaml"
-  - env: ARGS="--resolver lts-13"
-  - env: ARGS="--resolver lts-14"
-  - env: ARGS="--resolver lts-15"
+  - env: ARGS="--resolver lts-9  --compiler ghc-8.0.2 --stack-yaml stack_lts-9.yaml"
+  - env: ARGS="--resolver lts-11 --compiler ghc-8.2.2 --stack-yaml stack_lts-12.yaml"
+  - env: ARGS="--resolver lts-12 --compiler ghc-8.4.4 --stack-yaml stack_lts-12.yaml"
+  - env: ARGS="--resolver lts-13 --compiler ghc-8.6.4"
+  - env: ARGS="--resolver lts-14 --compiler ghc-8.6.5"
+  - env: ARGS="--resolver lts-15 --compiler ghc-8.8.2"
+  - env: ARGS="--resolver lts-16 --compiler ghc-8.8.3"
   - env: ARGS="--resolver nightly"
 
   allow_failures:

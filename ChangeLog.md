@@ -1,5 +1,9 @@
 # Changelog for safe-json
 
+## 1.1.1
+
+* Fix clash in `test/Instances.hs` of `Ord` instance for `Data.Aeson.Value` [#23]
+
 ## 1.1.0
 
 * update for GHC 8.8.1 [#15]
