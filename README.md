@@ -587,8 +587,8 @@ instance FromJSON FirstType where
   parseJSON = withObject "FirstType" $ \o -> do
       typ  <- o .: "type"
       guard $ typ == String "myType"
-      data <- o .: "data"
-      return $ FirstType data
+      val <- o .: "data"
+      return $ FirstType val
 ```
 
 ```haskell

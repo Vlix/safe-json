@@ -232,7 +232,7 @@ noVersion = Version Nothing
 
 -- | Same as 'setVersion', but requires a 'Version' parameter.
 --
--- >>> 'encode' $ 'setVersion'' ('version' :: 'Version' Test) val
+-- >>> encode $ setVersion' (version :: Version Test) val
 -- "{\"~v\":0,\"~d\":\"test\"}"
 --
 -- @since 1.0.0
@@ -318,7 +318,7 @@ liftV i f ma mb = Just $ toZ ma `f` toZ mb
 
 -- 'Version Nothing' is handled as if it's mempty... mostly.
 -- | It is strongly discouraged to use any methods other
---   than 'fromInteger' of 'Version'\'s 'Num' instance.
+--   than 'fromInteger' of 'Version''s 'Num' instance.
 instance Num (Version a) where
   Version ma + Version mb = Version $ liftV 0 (+) ma mb
   Version ma - Version mb = Version $ liftV 0 (-) ma mb
