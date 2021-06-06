@@ -8,7 +8,7 @@ on:
 
 jobs:
   cabal:
-    name: ${{ matrix.os }} / ghc ${{ matrix.ghc }}
+    name: cabal / ${{ matrix.os }} / ghc ${{ matrix.ghc }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -17,17 +17,18 @@ jobs:
           - macOS-latest
         cabal: ["latest"]
         ghc:
+          - "8.0.2"
           - "8.2.2"
           - "8.4.4"
           - "8.6.5"
           - "8.8.4"
-          - "8.10.2"
+          - "8.10.4"
 
     steps:
     - uses: actions/checkout@v2
       #if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
 
-    - uses: actions/setup-haskell@v1.1.4
+    - uses: haskell/actions/setup@v1
       id: setup-haskell-cabal
       name: Setup Haskell
       with:
@@ -58,7 +59,7 @@ jobs:
     # When some sort of `allow-failure` functionality is available in GitHub
     # actions, we should switch to it:
     # https://github.com/actions/toolkit/issues/399
-    continue-on-error: ${{ matrix.resolver == '--resolver nightly' }}
+    continue-on-error: ${{ matrix.resolver == '--resolver nightly' || matrix.resolver == '--compiler ghc-9.0.1' }}
     strategy:
       matrix:
         stack: ["latest"]
@@ -68,16 +69,19 @@ jobs:
           - "--resolver lts-12 --stack-yaml ./stack_lts-12.yaml" # GHC 8.4.4
           - "--resolver lts-14" # GHC 8.6.5
           - "--resolver lts-16" # GHC 8.8.4
+          - "--resolver lts-17" # GHC 8.10.4
           - "--resolver nightly" # GHC 8.10.* ?
+          - "--compiler ghc-9.0.1" # GHC 9.0.1
 
     steps:
     - uses: actions/checkout@v2
       #if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
 
-    - uses: actions/setup-haskell@v1.1.4
+    - uses: haskell/actions/setup@v1
       name: Setup Haskell Stack
       with:
         stack-version: ${{ matrix.stack }}
+        enable-stack: true
 
     - uses: actions/cache@v1
       name: Cache ~/.stack

@@ -8,7 +8,7 @@ copyright:           "2019 Felix Paulusma"
 # Metadata used when publishing your package
 synopsis:            Automatic JSON format versioning
 category:            "JSON"
-tested-with:         GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4
+tested-with:         GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.4
 
 extra-source-files:
 - README

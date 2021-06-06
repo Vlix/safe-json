@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b7372a5a81832b55c168d9e63f92b1a4899ff44b801f2be33d799d7ca2902655
+-- hash: da092e04ffdb6e7a556694eaf015aef65cb02cf0f3628af553f95b930169c3ee
 
 name:           safe-json
 version:        1.1.1.1
@@ -28,7 +28,8 @@ maintainer:     felix.paulusma@gmail.com
 copyright:      2019 Felix Paulusma
 license:        MIT
 license-file:   LICENSE
-tested-with:    GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4
+tested-with:
+    GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.4
 build-type:     Simple
 extra-source-files:
     README
@@ -60,7 +61,8 @@ library
       Paths_safe_json
   hs-source-dirs:
       src
-  default-extensions: OverloadedStrings
+  default-extensions:
+      OverloadedStrings
   build-depends:
       aeson >=1.4.1 && <1.6
     , base >=4.9 && <5
@@ -96,7 +98,8 @@ test-suite safe-json-test
       Paths_safe_json
   hs-source-dirs:
       test
-  default-extensions: OverloadedStrings
+  default-extensions:
+      OverloadedStrings
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson >=1.4.1 && <1.6
