@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b7372a5a81832b55c168d9e63f92b1a4899ff44b801f2be33d799d7ca2902655
+-- hash: 9f998855f274430dda63c5936f1d96c75bce950d132e0e432389f3ac00cdcf88
 
 name:           safe-json
-version:        1.1.1.1
+version:        1.1.2.0
 synopsis:       Automatic JSON format versioning
 description:    This library aims to make the updating of JSON formats or contents, while keeping backward compatibility, as painless as possible. The way this is achieved is through versioning and defined migration functions to migrate older (or newer) versions to the one used.
                 .
@@ -28,7 +28,8 @@ maintainer:     felix.paulusma@gmail.com
 copyright:      2019 Felix Paulusma
 license:        MIT
 license-file:   LICENSE
-tested-with:    GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4
+tested-with:
+    GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.7
 build-type:     Simple
 extra-source-files:
     README
@@ -60,9 +61,10 @@ library
       Paths_safe_json
   hs-source-dirs:
       src
-  default-extensions: OverloadedStrings
+  default-extensions:
+      OverloadedStrings
   build-depends:
-      aeson >=1.4.1 && <1.6
+      aeson >=1.4.1 && <2.1
     , base >=4.9 && <5
     , bytestring >=0.10.8.1 && <0.11
     , containers >=0.5.7.1 && <0.7
@@ -96,10 +98,11 @@ test-suite safe-json-test
       Paths_safe_json
   hs-source-dirs:
       test
-  default-extensions: OverloadedStrings
+  default-extensions:
+      OverloadedStrings
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson >=1.4.1 && <1.6
+      aeson >=1.4.1 && <2.1
     , base >=4.9 && <5
     , bytestring >=0.10.8.1 && <0.11
     , containers >=0.5.7.1 && <0.7

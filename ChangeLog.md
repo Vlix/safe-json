@@ -1,5 +1,9 @@
 # Changelog for safe-json
 
+## 1.1.2.0
+
+* Aeson 2.0.1.0+ compatibility https://cs-syd.eu/posts/2021-09-11-json-vulnerability
+
 ## 1.1.1.1
 
 * loosened dependecy restriction on `tasty`
