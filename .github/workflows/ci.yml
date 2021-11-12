@@ -10,7 +10,7 @@ jobs:
   cabal:
     name: cabal / ${{ matrix.os }} / ghc ${{ matrix.ghc }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.ghc == 9.0.1 }}
+    continue-on-error: ${{ matrix.ghc == '9.0.1' }}
     strategy:
       matrix:
         os:
@@ -61,7 +61,7 @@ jobs:
     # When some sort of `allow-failure` functionality is available in GitHub
     # actions, we should switch to it:
     # https://github.com/actions/toolkit/issues/399
-    continue-on-error: ${{ matrix.resolver == '--resolver nightly' || matrix.resolver == '--compiler ghc-9.0.1' }}
+    continue-on-error: ${{ matrix.resolver == '--resolver nightly' }}
     strategy:
       matrix:
         stack: ["latest"]
