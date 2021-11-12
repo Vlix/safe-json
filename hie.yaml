@@ -2,6 +2,8 @@ cradle:
   multi:
     # - path: "./test/testdata"
       # config: { cradle: { none } }
+    - path: "./.stack-work"
+      config: { cradle: { none } }
     - path: "./"
       config:
         cradle:
