@@ -32,9 +32,13 @@ outward-facing API.
 module Data.SafeJSON.Internal where
 
 
+#if MIN_VERSION_base(4,13,0)
+import Control.Applicative (Const(..), (<|>))
+#else
 import Control.Applicative (Applicative(..), Const(..), (<|>))
-import Control.Monad (when)
 import Control.Monad.Fail (MonadFail)
+#endif
+import Control.Monad (when)
 import Data.Aeson
 import Data.Aeson.Types (Parser, explicitParseField, explicitParseFieldMaybe, explicitParseFieldMaybe')
 import Data.DList as DList (DList, fromList)

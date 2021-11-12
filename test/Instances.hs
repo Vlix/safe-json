@@ -15,7 +15,11 @@ import Data.Time (NominalDiffTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import qualified Data.Vector.Primitive as VP
 
+#if MIN_VERSION_base(4,13,0)
+import Test.Tasty.QuickCheck (oneof, resize)
+#else
 import Test.Tasty.QuickCheck (Arbitrary(..), oneof, resize)
+#endif
 import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances()
 
