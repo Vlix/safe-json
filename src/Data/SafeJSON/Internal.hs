@@ -90,6 +90,12 @@ import Foreign.C.Types (CTime)
 import Numeric.Natural (Natural)
 import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
+import qualified Data.HashMap.Strict as HM (HashMap, fromList, toList)
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.KeyMap as Map (delete, insert, lookup, size)
+#else
+import qualified Data.HashMap.Strict as Map (delete, insert, lookup, size)
+#endif
 
 -- | A type that can be converted from and to JSON with versioning baked
 --   in, using 'Migrate' to automate migration between versions, reducing
@@ -244,8 +250,8 @@ setVersion' (Version mVersion) val =
       Object o ->
           let vField = maybe versionField
                              (const dataVersionField)
-                             $ dataVersionField `HM.lookup` o
-          in Object $ HM.insert vField (toJSON i) o
+                             $ dataVersionField `Map.lookup` o
+          in Object $ Map.insert vField (toJSON i) o
       other -> object
           [ dataVersionField .= i
           , dataField .= other
@@ -304,9 +310,9 @@ removeVersion = \case
     other -> other
         -- Recursively find all version tags and remove them.
   where go o = maybe regular removeVersion $ do
-                  _ <- dataVersionField `HM.lookup` o
-                  dataField `HM.lookup` o
-          where regular = Object $ removeVersion <$> HM.delete versionField o
+                  _ <- dataVersionField `Map.lookup` o
+                  dataField `Map.lookup` o
+          where regular = Object $ removeVersion <$> Map.delete versionField o
 
 instance Show (Version a) where
   show (Version mi) = "Version " ++ showV mi
@@ -379,13 +385,13 @@ extended_extension = Extended extension
 -- low probability of showing up naturally in JSON objects one
 -- would normally find or construct.
 
-versionField :: Text
+#if MIN_VERSION_aeson(2,0,0)
+versionField, dataVersionField, dataField :: Key
+#else
+versionField, dataVersionField, dataField :: Text
+#endif
 versionField = "!v"
-
-dataVersionField :: Text
 dataVersionField = "~v"
-
-dataField :: Text
 dataField = "~d"
 
 -- | Use this exactly how you would use 'toJSON' from "Data.Aeson".
@@ -486,7 +492,7 @@ safeFromJSON origVal = checkConsistency p $ \vs -> do
 
         firstTry o = do
             v <- o .: versionField
-            let versionLessObj = HM.delete versionField o
+            let versionLessObj = Map.delete versionField o
             return (Object versionLessObj, Version $ Just v)
         secondTry o = do
             v  <- o .: dataVersionField
@@ -494,7 +500,7 @@ safeFromJSON origVal = checkConsistency p $ \vs -> do
             -- This is an extra counter measure against false parsing.
             -- The simple data object should contain exactly the
             -- (~v) and (~d) fields
-            when (HM.size o /= 2) $ fail $ "malformed simple data (" ++ show (Version $ Just v) ++ ")"
+            when (Map.size o /= 2) $ fail $ "malformed simple data (" ++ show (Version $ Just v) ++ ")"
             return (bd, Version $ Just v)
 
 -- This takes the version number found (or Nothing) and tries find the type in
@@ -767,21 +773,33 @@ containWithBool = withContained withBool
 -- to parse the value in the given field.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,0,0)
+(.:$) :: SafeJSON a => Object -> Key -> Parser a
+#else
 (.:$) :: SafeJSON a => Object -> Text -> Parser a
+#endif
 (.:$) = explicitParseField safeFromJSON
 
 -- | Similar to 'Data.Aeson..:?', but uses `safeFromJSON` instead of parseJSON
 -- to maybe parse the value in the given field.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,0,0)
+(.:$?) :: SafeJSON a => Object -> Key -> Parser (Maybe a)
+#else
 (.:$?) :: SafeJSON a => Object -> Text -> Parser (Maybe a)
+#endif
 (.:$?) = explicitParseFieldMaybe safeFromJSON
 
 -- | Similar to 'Data.Aeson..:!', but uses `safeFromJSON` instead of parseJSON
 -- to maybe parse the value in the given field.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,0,0)
+(.:$!) :: SafeJSON a => Object -> Key -> Parser (Maybe a)
+#else
 (.:$!) :: SafeJSON a => Object -> Text -> Parser (Maybe a)
+#endif
 (.:$!) = explicitParseFieldMaybe' safeFromJSON
 
 
@@ -794,7 +812,11 @@ containWithBool = withContained withBool
 -- to convert the value in that key-value pair.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,0,0)
+(.=$) :: (SafeJSON a, KeyValue kv) => Key -> a -> kv
+#else
 (.=$) :: (SafeJSON a, KeyValue kv) => Text -> a -> kv
+#endif
 name .=$ val = name .= safeToJSON val
 
 

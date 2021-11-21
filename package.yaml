@@ -1,5 +1,5 @@
 name:                safe-json
-version:             1.1.1.1
+version:             1.1.2.0
 github:              "Vlix/safe-json"
 license:             MIT
 author:              "Felix Paulusma"
@@ -8,7 +8,7 @@ copyright:           "2019 Felix Paulusma"
 # Metadata used when publishing your package
 synopsis:            Automatic JSON format versioning
 category:            "JSON"
-tested-with:         GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4
+tested-with:         GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.7
 
 extra-source-files:
 - README
@@ -45,7 +45,7 @@ description: >
 
 
 dependencies:
-- aeson                 >= 1.4.1      && < 1.6
+- aeson                 >= 1.4.1      && < 2.1
 - base                  >= 4.9        && < 5
 - bytestring            >= 0.10.8.1   && < 0.11
 - containers            >= 0.5.7.1    && < 0.7
