@@ -92,7 +92,8 @@ import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
 import qualified Data.HashMap.Strict as HM (HashMap, fromList, toList)
 #if MIN_VERSION_aeson(2,0,0)
-import qualified Data.Aeson.KeyMap as Map (delete, insert, lookup, size)
+import qualified Data.Aeson.Key as K (Key)
+import qualified Data.Aeson.KeyMap as Map (KeyMap, delete, fromMap, insert, lookup, size)
 #else
 import qualified Data.HashMap.Strict as Map (delete, insert, lookup, size)
 #endif
@@ -848,6 +849,9 @@ BASIC_NULLARY(Word32)
 BASIC_NULLARY(Word64)
 BASIC_NULLARY(T.Text)
 BASIC_NULLARY(LT.Text)
+#if MIN_VERSION_aeson(2,0,0)
+BASIC_NULLARY(K.Key)
+#endif
 BASIC_NULLARY(DV.Version)
 BASIC_NULLARY(Scientific)
 BASIC_NULLARY(IntSet)
@@ -1032,11 +1036,24 @@ instance (SafeJSON a, Eq a, Hashable a) => SafeJSON (HS.HashSet a) where
 
 instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON (HM.HashMap a b) where
   safeFrom val = contain $ do
-      vs <- parseJSON val
-      fmap HM.fromList . mapM (mapM safeFromJSON) $ HM.toList vs
+      parseJSON val >>= traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName2
   version = noVersion
+
+#if MIN_VERSION_aeson(2,0,0)
+instance SafeJSON a => SafeJSON (Map.KeyMap a) where
+  safeFrom val = contain $ do
+      parseJSON val >>=
+#if MIN_VERSION_aeson(2,0,1)
+          traverse safeFromJSON
+#else
+          fmap Map.fromMap . traverse safeFromJSON
+#endif
+  safeTo as = contain . toJSON $ safeToJSON <$> as
+  typeName = typeName1
+  version = noVersion
+#endif
 
 instance (SafeJSON a, SafeJSON b) => SafeJSON (a, b) where
   safeFrom x = contain $ do
