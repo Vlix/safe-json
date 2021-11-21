@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 module PrimitiveTests where
@@ -7,6 +8,10 @@ module PrimitiveTests where
 import Control.Applicative (Const)
 import Data.Aeson (DotNetTime, Value, (.:))
 import qualified Data.Aeson as A
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.Key as K
+import qualified Data.Aeson.KeyMap as KM
+#endif
 import Data.Aeson.Types (parseEither)
 import Data.DList (DList)
 import Data.Fixed (E12, Fixed)
@@ -25,6 +30,7 @@ import Data.Scientific (Scientific)
 import Data.Semigroup (First, Last, Max, Min)
 import Data.Sequence (Seq)
 import Data.Set (Set)
+import Data.String (fromString)
 import Data.Text as T (Text, unpack)
 import Data.Text.Lazy as LT (Text)
 import Data.Time
@@ -55,21 +61,21 @@ primitiveTests = testGroup "Primitives"
   ]
 
 
-parseValueAnd :: forall a. SafeJSON a => T.Text -> (a -> IO ()) -> TestTree
-parseValueAnd t f = testCase (T.unpack t) $ do
+parseValueAnd :: forall a. SafeJSON a => String -> (a -> IO ()) -> TestTree
+parseValueAnd s f = testCase s $ do
     mVal <- A.decodeFileStrict "test/json/primitives.json"
     maybe
       (assertFailure "couldn't read file")
       (either fail f . parseEither go)
       mVal
   where go = A.withObject "test" $ \o -> do
-                o .: t >>= safeFromJSON
+                o .: fromString s >>= safeFromJSON
 
-parseValue :: forall a. SafeJSON a => T.Text -> TestTree
+parseValue :: forall a. SafeJSON a => String -> TestTree
 parseValue t = parseValueAnd t (const $ return () :: a -> IO ())
 
 fromJSONTest :: forall a. (A.FromJSON a, SafeJSON a, Eq a, Show a)
-             => T.Text -> TestTree
+             => String -> TestTree
 fromJSONTest t = parseValueAnd t $ \val -> do
     let a = (parseEither A.parseJSON val :: Either String a)
         b = parseEither safeFromJSON val
@@ -102,6 +108,9 @@ regularParsing = testGroup "Parsing from JSON"
   , parseValue @Word64     "Word64"
   , parseValue @T.Text     "T.Text"
   , parseValue @LT.Text    "LT.Text"
+#if MIN_VERSION_aeson(2,0,0)
+  , parseValue @K.Key      "Aeson.Key"
+#endif
   , parseValue @DV.Version "Version"
   , parseValue @Scientific "Scientific"
   , parseValue @IntSet     "IntSet"
@@ -150,6 +159,9 @@ regularParsing = testGroup "Parsing from JSON"
   , parseValue @(Map T.Text Int)     "Map"
   , parseValue @(HashSet Int)        "HashSet"
   , parseValue @(HashMap T.Text Int) "HashMap"
+#if MIN_VERSION_aeson(2,0,0)
+  , parseValue @(KM.KeyMap T.Text)   "Aeson.KeyMap"
+#endif
 
   , parseValue @(Int, Bool)                        "Tuple2"
   , parseValue @(Int, Bool, T.Text)                "Tuple3"
@@ -182,6 +194,9 @@ toJSONEquivalence = testGroup "safeToJSON === toJSON"
   , toJSONTest @Word64       "Word64"
   , toJSONTest @T.Text       "T.Text"
   , toJSONTest @LT.Text      "LT.Text"
+#if MIN_VERSION_aeson(2,0,0)
+  , toJSONTest @K.Key        "Aeson.Key"
+#endif
   , toJSONTest @DV.Version   "DV.Version"
   , toJSONTest @Scientific   "Scientific"
   , toJSONTest @IntSet       "IntSet"
@@ -225,6 +240,9 @@ toJSONEquivalence = testGroup "safeToJSON === toJSON"
   , toJSONTest @(Map T.Text Int)           "Map"
   , toJSONTest @(HashSet Int)              "HashSet"
   , toJSONTest @(HashMap T.Text Int)       "HashMap"
+#if MIN_VERSION_aeson(2,0,0)
+  , toJSONTest @(KM.KeyMap T.Text)         "Aeson.KeyMap"
+#endif
   , toJSONTest @(Int, Bool)                "Tuple2"
   , toJSONTest @(Int, Bool, T.Text)        "Tuple3"
   , toJSONTest @(Int, Bool, T.Text, [Int]) "Tuple4"
@@ -253,6 +271,9 @@ fromJSONEquivalence = testGroup "safeFromJSON === fromJSON"
   , fromJSONTest @Word64       "Word64"
   , fromJSONTest @T.Text       "T.Text"
   , fromJSONTest @LT.Text      "LT.Text"
+#if MIN_VERSION_aeson(2,0,0)
+  , fromJSONTest @K.Key        "Aeson.Key"
+#endif
   , fromJSONTest @DV.Version   "Version"
   , fromJSONTest @Scientific   "Scientific"
   , fromJSONTest @IntSet       "IntSet"
@@ -296,6 +317,9 @@ fromJSONEquivalence = testGroup "safeFromJSON === fromJSON"
   , fromJSONTest @(Map T.Text Int)           "Map"
   , fromJSONTest @(HashSet Int)              "HashSet"
   , fromJSONTest @(HashMap T.Text Int)       "HashMap"
+#if MIN_VERSION_aeson(2,0,1)
+  , fromJSONTest @(KM.KeyMap T.Text)         "Aeson.KeyMap"
+#endif
   , fromJSONTest @(Int, Bool)                "Tuple2"
   , fromJSONTest @(Int, Bool, T.Text)        "Tuple3"
   , fromJSONTest @(Int, Bool, T.Text, [Int]) "Tuple4"

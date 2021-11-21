@@ -9,6 +9,10 @@ module Instances (
 
 
 import Data.Aeson
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.Key as K
+import qualified Data.Aeson.KeyMap as KM
+#endif
 import Data.DList (DList, fromList, toList)
 import Data.Int (Int64)
 import Data.Time (NominalDiffTime)
@@ -69,4 +73,12 @@ instance Ord Value where
   String{} `compare` _        = LT
   Array{}  `compare` Object{} = LT
   _        `compare` _        = GT
+#endif
+
+#if MIN_VERSION_aeson(2,0,0)
+instance Arbitrary v => Arbitrary (KM.KeyMap v) where
+    arbitrary = KM.fromList <$> arbitrary
+
+instance Arbitrary K.Key where
+    arbitrary = K.fromText <$> arbitrary
 #endif
