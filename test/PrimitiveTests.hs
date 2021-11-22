@@ -15,7 +15,10 @@ import qualified Data.Aeson.KeyMap as KM
 import Data.Aeson.Types (parseEither)
 import Data.DList (DList)
 import Data.Fixed (E12, Fixed)
+import Data.Functor.Compose (Compose)
 import Data.Functor.Identity (Identity)
+import Data.Functor.Product (Product)
+import Data.Functor.Sum (Sum)
 import Data.HashMap.Strict (HashMap)
 import Data.HashSet (HashSet)
 import Data.Int (Int8, Int16, Int32, Int64)
@@ -167,6 +170,17 @@ regularParsing = testGroup "Parsing from JSON"
   , parseValue @(Int, Bool, T.Text)                "Tuple3"
   , parseValue @(Int, Bool, T.Text, [Int])         "Tuple4"
   , parseValue @(Int, Bool, T.Text, [Int], Double) "Tuple5"
+
+  , parseValue @(Compose (Either T.Text) Maybe Int)   "Compose"
+  , parseValue @(Compose (Either T.Text) Maybe Int)   "Compose2"
+  , parseValue @(Compose (Either T.Text) Maybe Int)   "Compose3"
+  , parseValue @(Product (Either T.Text) Maybe Int)   "Product"
+  , parseValue @(Product (Either T.Text) Maybe Int)   "Product2"
+  , parseValue @(Product (Either T.Text) Maybe Int)   "Product3"
+  , parseValue @(Product (Either T.Text) Maybe Int)   "Product4"
+  , parseValue @(Sum (Either T.Text) Maybe Int)       "Sum"
+  , parseValue @(Sum (Either T.Text) Maybe Int)       "Sum2"
+  , parseValue @(Sum (Either T.Text) Maybe Int)       "Sum3"
   ]
 
 
@@ -247,6 +261,9 @@ toJSONEquivalence = testGroup "safeToJSON === toJSON"
   , toJSONTest @(Int, Bool, T.Text)        "Tuple3"
   , toJSONTest @(Int, Bool, T.Text, [Int]) "Tuple4"
   , toJSONTest @(Int, Bool, T.Text, [Int], Double) "Tuple5"
+  , toJSONTest @(Compose (Either T.Text) Maybe Int) "Compose"
+  , toJSONTest @(Product (Either T.Text) Maybe Int) "Product"
+  , toJSONTest @(Sum (Either T.Text) Maybe Int)     "Sum"
   ]
 
 fromJSONEquivalence :: TestTree
@@ -324,4 +341,7 @@ fromJSONEquivalence = testGroup "safeFromJSON === fromJSON"
   , fromJSONTest @(Int, Bool, T.Text)        "Tuple3"
   , fromJSONTest @(Int, Bool, T.Text, [Int]) "Tuple4"
   , fromJSONTest @(Int, Bool, T.Text, [Int], Double) "Tuple5"
+  , fromJSONTest @(Compose (Either T.Text) Maybe Int) "Compose"
+  , fromJSONTest @(Product (Either T.Text) Maybe Int) "Product"
+  , fromJSONTest @(Sum (Either T.Text) Maybe Int)     "Sum"
   ]

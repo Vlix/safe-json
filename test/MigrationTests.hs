@@ -230,6 +230,6 @@ parseCollectionFail :: forall f a.
                     => String -> [String] -> ([(Text,Value)] -> Value) -> TestTree
 parseCollectionFail = parseCollection' @f @a go
   where go :: IO () -> IO ()
-        go io = try io >>= \case
-            Left e -> return () `const` (e :: HUnitFailure)
+        go io = try @HUnitFailure io >>= \case
+            Left e -> return ()
             Right{} -> assertFailure "Should have failed"

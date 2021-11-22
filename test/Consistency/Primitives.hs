@@ -10,7 +10,10 @@ import qualified Data.Aeson.KeyMap as KM (KeyMap)
 #endif
 import Data.DList (DList)
 import Data.Fixed (E12, Fixed)
+import Data.Functor.Compose (Compose)
 import Data.Functor.Identity (Identity)
+import Data.Functor.Product (Product)
+import Data.Functor.Sum (Sum)
 import Data.HashMap.Strict (HashMap)
 import Data.HashSet (HashSet)
 import Data.Int (Int8, Int16, Int32, Int64)
@@ -118,4 +121,8 @@ primitiveConsistency = testGroup "Primitives conversions"
   , testRoundTripProp @(Int, Bool, T.Text)                "Tuple3"
   , testRoundTripProp @(Int, Bool, T.Text, [Int])         "Tuple4"
   , testRoundTripProp @(Int, Bool, T.Text, [Int], Double) "Tuple5"
+
+  , testRoundTripProp @(Compose (Either Int) Maybe Int) "Compose"
+  , testRoundTripProp @(Product (Either Int) Maybe Int) "Product"
+  , testRoundTripProp @(Sum Maybe Maybe Int) "Sum"
   ]
