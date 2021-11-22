@@ -40,19 +40,17 @@ import Data.Aeson.Types (Parser, explicitParseField, explicitParseFieldMaybe, ex
 import Data.DList as DList (DList, fromList)
 import Data.Fixed (Fixed, HasResolution)
 import Data.Functor.Identity (Identity(..))
-import Data.Functor.Compose (Compose) -- FIXME: add SafeJSON Instances
-import Data.Functor.Product (Product) -- FIXME: add SafeJSON Instances
-import Data.Functor.Sum (Sum(..))     -- FIXME: add SafeJSON Instances
+import Data.Functor.Compose (Compose (..))
+import Data.Functor.Product (Product (..))
+import Data.Functor.Sum (Sum(..))
 import Data.Hashable (Hashable)
-import Data.HashMap.Strict as HM (insert, size)
-import qualified Data.HashMap.Strict as HM (HashMap, delete, fromList, lookup, toList)
 import qualified Data.HashSet as HS (HashSet, fromList, toList)
 import Data.Int (Int16, Int32, Int64, Int8)
 import Data.IntMap as IM (IntMap, fromList)
 import Data.IntSet (IntSet)
 import qualified Data.List as List (intercalate, lookup)
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.Map (Map)
+import Data.Map as M (Map, singleton)
 import Data.Maybe (fromMaybe, isJust, isNothing)
 #if MIN_VERSION_base(4,11,0)
 import Data.Monoid (Dual(..))
@@ -90,12 +88,13 @@ import Foreign.C.Types (CTime)
 import Numeric.Natural (Natural)
 import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
-import qualified Data.HashMap.Strict as HM (HashMap, fromList, toList)
+import qualified Data.HashMap.Strict as HM (HashMap, fromList, insert, size, toList)
 #if MIN_VERSION_aeson(2,0,0)
 import qualified Data.Aeson.Key as K (Key)
-import qualified Data.Aeson.KeyMap as Map (KeyMap, delete, fromMap, insert, lookup, size)
+import qualified Data.Aeson.KeyMap as Map (KeyMap, delete, fromMap, insert, lookup, size, toList)
 #else
-import qualified Data.HashMap.Strict as Map (delete, insert, lookup, size)
+import qualified Data.HashMap.Strict as Map (delete, insert, lookup, size, toList)
+import Data.Traversable (Traversable)
 #endif
 
 -- | A type that can be converted from and to JSON with versioning baked
@@ -1086,3 +1085,29 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d, SafeJSON e) => SafeJSO
   safeTo (a,b,c,d,e) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d, safeToJSON e)
   typeName = typeName5
   version = noVersion
+
+instance SafeJSON (f (g a)) => SafeJSON (Compose f g a) where
+    safeFrom val = contain $ Compose <$> safeFromJSON val
+    safeTo (Compose val) = contain $ safeToJSON val
+    typeName _ = "Compose"
+    version = noVersion
+
+instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
+    safeFrom = containWithObject "Sum" $ \o -> do
+        case Map.toList o of
+            [("InL", val)] -> InL <$> safeFromJSON val
+            [("InR", val)] -> InR <$> safeFromJSON val
+            _ -> fail "Sum expects an object with one field: \"InL\" or \"InR\""
+    safeTo = contain . safeToJSON . uncurry M.singleton . \case
+        InL fa -> ("InL" :: String, safeToJSON fa)
+        InR ga -> ("InR" :: String, safeToJSON ga)
+    typeName _ = "Sum"
+    version = noVersion
+
+instance (SafeJSON (f a), SafeJSON (g a), SafeJSON a) => SafeJSON (Product f g a) where
+    safeFrom val = contain $ do
+        (f, g) <- parseJSON val
+        Pair <$> safeFromJSON f <*> safeFromJSON g
+    safeTo (Pair f g) = contain $ toJSON (safeToJSON f, safeToJSON g)
+    typeName _ = "Product"
+    version = noVersion
