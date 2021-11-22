@@ -900,9 +900,8 @@ instance SafeJSON a => SafeJSON (Const a b) where
   version = noVersion
 
 instance SafeJSON a => SafeJSON (Maybe a) where
-  -- This follows the same 'Null' logic as the aeson library
-  safeFrom Null = contain $ pure (Nothing :: Maybe a)
-  safeFrom val = contain $ Just <$> safeFromJSON val
+  safeFrom val = contain $
+      parseJSON val >>= traverse safeFromJSON
   -- Nothing means do whatever Aeson thinks Nothing should be
   safeTo Nothing = contain $ toJSON (Nothing :: Maybe Value)
   -- If there's something, keep it safe
@@ -975,9 +974,8 @@ instance (SafeJSON a, VG.Vector VU.Vector a) => SafeJSON (VU.Vector a) where
 --   a list of that type where each element has been migrated as
 --   appropriate.
 instance  {-# OVERLAPPABLE #-} SafeJSON a => SafeJSON [a] where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      mapM safeFromJSON vs
+  safeFrom val = contain $
+      parseJSON val >>= traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
@@ -985,7 +983,7 @@ instance  {-# OVERLAPPABLE #-} SafeJSON a => SafeJSON [a] where
 #define BASIC_UNARY_FUNCTOR(T)                      \
 instance SafeJSON a => SafeJSON (T a) where {       \
   safeFrom val = contain $                          \
-      parseJSON val >>= mapM safeFromJSON;          \
+      parseJSON val >>= traverse safeFromJSON;      \
   safeTo as = contain . toJSON $ safeToJSON <$> as; \
   typeName = typeName1;                             \
   version = noVersion }
@@ -993,49 +991,38 @@ instance SafeJSON a => SafeJSON (T a) where {       \
 BASIC_UNARY_FUNCTOR(NonEmpty)
 BASIC_UNARY_FUNCTOR(Seq)
 BASIC_UNARY_FUNCTOR(Tree)
-
-instance (SafeJSON a) => SafeJSON (IntMap a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      IM.fromList <$> mapM safeFromJSON vs
-  safeTo as = contain . toJSON $ safeToJSON <$> as
-  typeName = typeName1
-  version = noVersion
+BASIC_UNARY_FUNCTOR(IntMap)
 
 instance (SafeJSON a) => SafeJSON (DList a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      DList.fromList <$> mapM safeFromJSON vs
+  safeFrom val = contain $
+      DList.fromList <$> safeFromJSON val
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
 
 instance (SafeJSON a, Ord a) => SafeJSON (S.Set a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      S.fromList <$> safeFromJSON vs
+  safeFrom val = contain $
+      S.fromList <$> safeFromJSON val
   safeTo as = contain . toJSON $ safeToJSON <$> S.toList as
   typeName = typeName1
   version = noVersion
 
 instance (Ord k, FromJSONKey k, ToJSONKey k, SafeJSON a) => SafeJSON (Map k a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      mapM safeFromJSON vs
+  safeFrom val = contain $
+      parseJSON val >>= traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName2
   version = noVersion
 
 instance (SafeJSON a, Eq a, Hashable a) => SafeJSON (HS.HashSet a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      HS.fromList <$> safeFromJSON vs
+  safeFrom val = contain $
+      HS.fromList <$> safeFromJSON val
   safeTo as = contain . toJSON $ safeToJSON <$> HS.toList as
   typeName = typeName1
   version = noVersion
 
 instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON (HM.HashMap a b) where
-  safeFrom val = contain $ do
+  safeFrom val = contain $
       parseJSON val >>= traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName2
@@ -1043,13 +1030,12 @@ instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON 
 
 #if MIN_VERSION_aeson(2,0,0)
 instance SafeJSON a => SafeJSON (Map.KeyMap a) where
-  safeFrom val = contain $ do
-      parseJSON val >>=
-#if MIN_VERSION_aeson(2,0,1)
-          traverse safeFromJSON
-#else
-          fmap Map.fromMap . traverse safeFromJSON
+  safeFrom val = contain $
+#if !MIN_VERSION_aeson(2,0,1)
+      fmap Map.fromMap $
 #endif
+          parseJSON val >>=
+              traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
@@ -1060,7 +1046,7 @@ instance (SafeJSON a, SafeJSON b) => SafeJSON (a, b) where
       (a',b') <- parseJSON x
       a <- safeFromJSON a'
       b <- safeFromJSON b'
-      return (a,b)
+      pure (a,b)
   safeTo (a,b) = contain $ toJSON (safeToJSON a, safeToJSON b)
   typeName = typeName2
   version = noVersion
@@ -1071,7 +1057,7 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c) => SafeJSON (a, b, c) where
       a <- safeFromJSON a'
       b <- safeFromJSON b'
       c <- safeFromJSON c'
-      return (a,b,c)
+      pure (a,b,c)
   safeTo (a,b,c) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c)
   typeName = typeName3
   version = noVersion
@@ -1083,7 +1069,7 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d) => SafeJSON (a, b, c, 
       b <- safeFromJSON b'
       c <- safeFromJSON c'
       d <- safeFromJSON d'
-      return (a,b,c,d)
+      pure (a,b,c,d)
   safeTo (a,b,c,d) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d)
   typeName = typeName4
   version = noVersion
@@ -1096,7 +1082,7 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d, SafeJSON e) => SafeJSO
       c <- safeFromJSON c'
       d <- safeFromJSON d'
       e <- safeFromJSON e'
-      return (a,b,c,d,e)
+      pure (a,b,c,d,e)
   safeTo (a,b,c,d,e) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d, safeToJSON e)
   typeName = typeName5
   version = noVersion
