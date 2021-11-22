@@ -80,7 +80,7 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - generic-arbitrary     >= 0.1.0    && < 0.3
-      - safe-json             >= 1.0      && < 1.2
+      - safe-json
       - quickcheck-instances  >= 0.3.16   && < 0.4
       - tasty
       - tasty-hunit

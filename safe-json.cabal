@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 11c8ffee1146c838bf5a1939bca95f808694c249fa6fc848122b5f37e16f30e0
+-- hash: 5d707ccaf68f844a8abf698806174d055e0b54a9afe1b602f26bc37fff0d26bb
 
 name:           safe-json
 version:        1.1.2.0
@@ -110,7 +110,7 @@ test-suite safe-json-test
     , generic-arbitrary >=0.1.0 && <0.3
     , hashable >=1.2.6.1 && <1.4
     , quickcheck-instances >=0.3.16 && <0.4
-    , safe-json >=1.0 && <1.2
+    , safe-json
     , scientific >=0.3.5.2 && <0.4
     , tasty
     , tasty-hunit
