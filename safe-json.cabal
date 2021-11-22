@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5d707ccaf68f844a8abf698806174d055e0b54a9afe1b602f26bc37fff0d26bb
+-- hash: 8355ba082d5b33671f6951544a67e1c0874971b8a3b339abe51a00d2d381641f
 
 name:           safe-json
 version:        1.1.2.0
@@ -29,7 +29,7 @@ copyright:      2019 Felix Paulusma
 license:        MIT
 license-file:   LICENSE
 tested-with:
-    GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.7
+    GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.7, GHC == 9.0.1
 build-type:     Simple
 extra-source-files:
     README
