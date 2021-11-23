@@ -19,6 +19,7 @@
   "Word64":18446744073709551615,
   "T.Text":"testing",
   "LT.Text":"lazy testing",
+  "Aeson.Key":"testing",
   "Version":"1.2.3-tag1-tag2",
   "Scientific":1.34876e-123,
   "IntSet":[1,2,3,99999999],
@@ -77,9 +78,22 @@
   "Map": {"a":1,"b":2},
   "HashSet": [1,2,3,4,5,6],
   "HashMap": {"a":1,"b":2},
+  "Aeson.KeyMap": {"a":"1","b":"2"},
 
   "Tuple2": [1,true],
   "Tuple3": [1,true,"test"],
   "Tuple4": [1,true,"test",[]],
-  "Tuple5": [1,true,"test",[],0.45e-3]
+  "Tuple5": [1,true,"test",[],0.45e-3],
+
+  "Compose": {"Left": "test"},
+  "Compose2": {"Right": null},
+  "Compose3": {"Right": 4},
+  "Product": [{"Left": "test"}, null],
+  "Product2": [{"Left": "test"}, 7],
+  "Product3": [{"Right": 5}, null],
+  "Product4": [{"Right": 5}, 6],
+  "Sum": {"InL": {"Left": "test"}},
+  "Sum2": {"InL": {"Right": 2}},
+  "Sum3": {"InR": null},
+  "Sum4": {"InR": 1}
 }

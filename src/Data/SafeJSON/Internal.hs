@@ -44,19 +44,18 @@ import Data.Aeson.Types (Parser, explicitParseField, explicitParseFieldMaybe, ex
 import Data.DList as DList (DList, fromList)
 import Data.Fixed (Fixed, HasResolution)
 import Data.Functor.Identity (Identity(..))
-import Data.Functor.Compose (Compose) -- FIXME: add SafeJSON Instances
-import Data.Functor.Product (Product) -- FIXME: add SafeJSON Instances
-import Data.Functor.Sum (Sum(..))     -- FIXME: add SafeJSON Instances
+import Data.Functor.Compose (Compose (..))
+import Data.Functor.Product (Product (..))
+import Data.Functor.Sum (Sum(..))
 import Data.Hashable (Hashable)
-import Data.HashMap.Strict as HM (insert, size)
-import qualified Data.HashMap.Strict as HM (HashMap, delete, fromList, lookup, toList)
+import Data.HashMap.Strict (HashMap)
 import qualified Data.HashSet as HS (HashSet, fromList, toList)
 import Data.Int (Int16, Int32, Int64, Int8)
 import Data.IntMap as IM (IntMap, fromList)
 import Data.IntSet (IntSet)
 import qualified Data.List as List (intercalate, lookup)
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.Map (Map)
+import Data.Map as M (Map, singleton)
 import Data.Maybe (fromMaybe, isJust, isNothing)
 #if MIN_VERSION_base(4,11,0)
 import Data.Monoid (Dual(..))
@@ -94,6 +93,12 @@ import Foreign.C.Types (CTime)
 import Numeric.Natural (Natural)
 import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.Key as K (Key)
+import qualified Data.Aeson.KeyMap as Map (KeyMap, delete, fromMap, insert, lookup, size, toList)
+#else
+import qualified Data.HashMap.Strict as Map (delete, insert, lookup, size, toList)
+#endif
 
 -- | A type that can be converted from and to JSON with versioning baked
 --   in, using 'Migrate' to automate migration between versions, reducing
@@ -248,8 +253,8 @@ setVersion' (Version mVersion) val =
       Object o ->
           let vField = maybe versionField
                              (const dataVersionField)
-                             $ dataVersionField `HM.lookup` o
-          in Object $ HM.insert vField (toJSON i) o
+                             $ dataVersionField `Map.lookup` o
+          in Object $ Map.insert vField (toJSON i) o
       other -> object
           [ dataVersionField .= i
           , dataField .= other
@@ -308,9 +313,9 @@ removeVersion = \case
     other -> other
         -- Recursively find all version tags and remove them.
   where go o = maybe regular removeVersion $ do
-                  _ <- dataVersionField `HM.lookup` o
-                  dataField `HM.lookup` o
-          where regular = Object $ removeVersion <$> HM.delete versionField o
+                  _ <- dataVersionField `Map.lookup` o
+                  dataField `Map.lookup` o
+          where regular = Object $ removeVersion <$> Map.delete versionField o
 
 instance Show (Version a) where
   show (Version mi) = "Version " ++ showV mi
@@ -383,13 +388,13 @@ extended_extension = Extended extension
 -- low probability of showing up naturally in JSON objects one
 -- would normally find or construct.
 
-versionField :: Text
+#if MIN_VERSION_aeson(2,0,0)
+versionField, dataVersionField, dataField :: Key
+#else
+versionField, dataVersionField, dataField :: Text
+#endif
 versionField = "!v"
-
-dataVersionField :: Text
 dataVersionField = "~v"
-
-dataField :: Text
 dataField = "~d"
 
 -- | Use this exactly how you would use 'toJSON' from "Data.Aeson".
@@ -490,7 +495,7 @@ safeFromJSON origVal = checkConsistency p $ \vs -> do
 
         firstTry o = do
             v <- o .: versionField
-            let versionLessObj = HM.delete versionField o
+            let versionLessObj = Map.delete versionField o
             return (Object versionLessObj, Version $ Just v)
         secondTry o = do
             v  <- o .: dataVersionField
@@ -498,7 +503,7 @@ safeFromJSON origVal = checkConsistency p $ \vs -> do
             -- This is an extra counter measure against false parsing.
             -- The simple data object should contain exactly the
             -- (~v) and (~d) fields
-            when (HM.size o /= 2) $ fail $ "malformed simple data (" ++ show (Version $ Just v) ++ ")"
+            when (Map.size o /= 2) $ fail $ "malformed simple data (" ++ show (Version $ Just v) ++ ")"
             return (bd, Version $ Just v)
 
 -- This takes the version number found (or Nothing) and tries find the type in
@@ -771,21 +776,33 @@ containWithBool = withContained withBool
 -- to parse the value in the given field.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,0,0)
+(.:$) :: SafeJSON a => Object -> Key -> Parser a
+#else
 (.:$) :: SafeJSON a => Object -> Text -> Parser a
+#endif
 (.:$) = explicitParseField safeFromJSON
 
 -- | Similar to 'Data.Aeson..:?', but uses `safeFromJSON` instead of parseJSON
 -- to maybe parse the value in the given field.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,0,0)
+(.:$?) :: SafeJSON a => Object -> Key -> Parser (Maybe a)
+#else
 (.:$?) :: SafeJSON a => Object -> Text -> Parser (Maybe a)
+#endif
 (.:$?) = explicitParseFieldMaybe safeFromJSON
 
 -- | Similar to 'Data.Aeson..:!', but uses `safeFromJSON` instead of parseJSON
 -- to maybe parse the value in the given field.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,0,0)
+(.:$!) :: SafeJSON a => Object -> Key -> Parser (Maybe a)
+#else
 (.:$!) :: SafeJSON a => Object -> Text -> Parser (Maybe a)
+#endif
 (.:$!) = explicitParseFieldMaybe' safeFromJSON
 
 
@@ -798,7 +815,11 @@ containWithBool = withContained withBool
 -- to convert the value in that key-value pair.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,0,0)
+(.=$) :: (SafeJSON a, KeyValue kv) => Key -> a -> kv
+#else
 (.=$) :: (SafeJSON a, KeyValue kv) => Text -> a -> kv
+#endif
 name .=$ val = name .= safeToJSON val
 
 
@@ -830,6 +851,9 @@ BASIC_NULLARY(Word32)
 BASIC_NULLARY(Word64)
 BASIC_NULLARY(T.Text)
 BASIC_NULLARY(LT.Text)
+#if MIN_VERSION_aeson(2,0,0)
+BASIC_NULLARY(K.Key)
+#endif
 BASIC_NULLARY(DV.Version)
 BASIC_NULLARY(Scientific)
 BASIC_NULLARY(IntSet)
@@ -878,9 +902,8 @@ instance SafeJSON a => SafeJSON (Const a b) where
   version = noVersion
 
 instance SafeJSON a => SafeJSON (Maybe a) where
-  -- This follows the same 'Null' logic as the aeson library
-  safeFrom Null = contain $ pure (Nothing :: Maybe a)
-  safeFrom val = contain $ Just <$> safeFromJSON val
+  safeFrom val = contain $
+      parseJSON val >>= traverse safeFromJSON
   -- Nothing means do whatever Aeson thinks Nothing should be
   safeTo Nothing = contain $ toJSON (Nothing :: Maybe Value)
   -- If there's something, keep it safe
@@ -953,9 +976,8 @@ instance (SafeJSON a, VG.Vector VU.Vector a) => SafeJSON (VU.Vector a) where
 --   a list of that type where each element has been migrated as
 --   appropriate.
 instance  {-# OVERLAPPABLE #-} SafeJSON a => SafeJSON [a] where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      mapM safeFromJSON vs
+  safeFrom val = contain $
+      parseJSON val >>= traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
@@ -963,7 +985,7 @@ instance  {-# OVERLAPPABLE #-} SafeJSON a => SafeJSON [a] where
 #define BASIC_UNARY_FUNCTOR(T)                      \
 instance SafeJSON a => SafeJSON (T a) where {       \
   safeFrom val = contain $                          \
-      parseJSON val >>= mapM safeFromJSON;          \
+      parseJSON val >>= traverse safeFromJSON;      \
   safeTo as = contain . toJSON $ safeToJSON <$> as; \
   typeName = typeName1;                             \
   version = noVersion }
@@ -972,60 +994,67 @@ BASIC_UNARY_FUNCTOR(NonEmpty)
 BASIC_UNARY_FUNCTOR(Seq)
 BASIC_UNARY_FUNCTOR(Tree)
 
-instance (SafeJSON a) => SafeJSON (IntMap a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      IM.fromList <$> mapM safeFromJSON vs
+instance SafeJSON a => SafeJSON (IntMap a) where
+  safeFrom val = contain $
+      IM.fromList <$> safeFromJSON val
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
 
 instance (SafeJSON a) => SafeJSON (DList a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      DList.fromList <$> mapM safeFromJSON vs
+  safeFrom val = contain $
+      DList.fromList <$> safeFromJSON val
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
 
 instance (SafeJSON a, Ord a) => SafeJSON (S.Set a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      S.fromList <$> safeFromJSON vs
+  safeFrom val = contain $
+      S.fromList <$> safeFromJSON val
   safeTo as = contain . toJSON $ safeToJSON <$> S.toList as
   typeName = typeName1
   version = noVersion
 
 instance (Ord k, FromJSONKey k, ToJSONKey k, SafeJSON a) => SafeJSON (Map k a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      mapM safeFromJSON vs
+  safeFrom val = contain $
+      parseJSON val >>= traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName2
   version = noVersion
 
 instance (SafeJSON a, Eq a, Hashable a) => SafeJSON (HS.HashSet a) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      HS.fromList <$> safeFromJSON vs
+  safeFrom val = contain $
+      HS.fromList <$> safeFromJSON val
   safeTo as = contain . toJSON $ safeToJSON <$> HS.toList as
   typeName = typeName1
   version = noVersion
 
-instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON (HM.HashMap a b) where
-  safeFrom val = contain $ do
-      vs <- parseJSON val
-      fmap HM.fromList . mapM (mapM safeFromJSON) $ HM.toList vs
+instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON (HashMap a b) where
+  safeFrom val = contain $
+      parseJSON val >>= traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as
   typeName = typeName2
   version = noVersion
+
+#if MIN_VERSION_aeson(2,0,0)
+instance SafeJSON a => SafeJSON (Map.KeyMap a) where
+  safeFrom val = contain $
+#if !MIN_VERSION_aeson(2,0,1)
+      fmap Map.fromMap $
+#endif
+          parseJSON val >>=
+              traverse safeFromJSON
+  safeTo as = contain . toJSON $ safeToJSON <$> as
+  typeName = typeName1
+  version = noVersion
+#endif
 
 instance (SafeJSON a, SafeJSON b) => SafeJSON (a, b) where
   safeFrom x = contain $ do
       (a',b') <- parseJSON x
       a <- safeFromJSON a'
       b <- safeFromJSON b'
-      return (a,b)
+      pure (a,b)
   safeTo (a,b) = contain $ toJSON (safeToJSON a, safeToJSON b)
   typeName = typeName2
   version = noVersion
@@ -1036,7 +1065,7 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c) => SafeJSON (a, b, c) where
       a <- safeFromJSON a'
       b <- safeFromJSON b'
       c <- safeFromJSON c'
-      return (a,b,c)
+      pure (a,b,c)
   safeTo (a,b,c) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c)
   typeName = typeName3
   version = noVersion
@@ -1048,7 +1077,7 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d) => SafeJSON (a, b, c, 
       b <- safeFromJSON b'
       c <- safeFromJSON c'
       d <- safeFromJSON d'
-      return (a,b,c,d)
+      pure (a,b,c,d)
   safeTo (a,b,c,d) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d)
   typeName = typeName4
   version = noVersion
@@ -1061,7 +1090,33 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d, SafeJSON e) => SafeJSO
       c <- safeFromJSON c'
       d <- safeFromJSON d'
       e <- safeFromJSON e'
-      return (a,b,c,d,e)
+      pure (a,b,c,d,e)
   safeTo (a,b,c,d,e) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d, safeToJSON e)
   typeName = typeName5
   version = noVersion
+
+instance SafeJSON (f (g a)) => SafeJSON (Compose f g a) where
+    safeFrom val = contain $ Compose <$> safeFromJSON val
+    safeTo (Compose val) = contain $ safeToJSON val
+    typeName _ = "Compose"
+    version = noVersion
+
+instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
+    safeFrom = containWithObject "Sum" $ \o -> do
+        case Map.toList o of
+            [("InL", val)] -> InL <$> safeFromJSON val
+            [("InR", val)] -> InR <$> safeFromJSON val
+            _ -> fail "Sum expects an object with one field: \"InL\" or \"InR\""
+    safeTo = contain . safeToJSON . uncurry M.singleton . \case
+        InL fa -> ("InL" :: String, safeToJSON fa)
+        InR ga -> ("InR" :: String, safeToJSON ga)
+    typeName _ = "Sum"
+    version = noVersion
+
+instance (SafeJSON (f a), SafeJSON (g a), SafeJSON a) => SafeJSON (Product f g a) where
+    safeFrom val = contain $ do
+        (f, g) <- parseJSON val
+        Pair <$> safeFromJSON f <*> safeFromJSON g
+    safeTo (Pair f g) = contain $ toJSON (safeToJSON f, safeToJSON g)
+    typeName _ = "Product"
+    version = noVersion

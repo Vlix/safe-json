@@ -1,12 +1,19 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeApplications #-}
 module Consistency.Primitives where
 
 
 import Control.Applicative (Const)
 import Data.Aeson (DotNetTime, Value)
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.KeyMap as KM (KeyMap)
+#endif
 import Data.DList (DList)
 import Data.Fixed (E12, Fixed)
+import Data.Functor.Compose (Compose)
 import Data.Functor.Identity (Identity)
+import Data.Functor.Product (Product)
+import Data.Functor.Sum (Sum)
 import Data.HashMap.Strict (HashMap)
 import Data.HashSet (HashSet)
 import Data.Int (Int8, Int16, Int32, Int64)
@@ -107,8 +114,15 @@ primitiveConsistency = testGroup "Primitives conversions"
   , testRoundTripProp @(Map T.Text Int)     "Map"
   , testRoundTripProp @(HashSet Int)        "HashSet"
   , testRoundTripProp @(HashMap T.Text Int) "HashMap"
+#if MIN_VERSION_aeson(2,0,0)
+  , testRoundTripProp @(KM.KeyMap T.Text)   "Aeson.KeyMap"
+#endif
   , testRoundTripProp @(Int, Bool)                        "Tuple2"
   , testRoundTripProp @(Int, Bool, T.Text)                "Tuple3"
   , testRoundTripProp @(Int, Bool, T.Text, [Int])         "Tuple4"
   , testRoundTripProp @(Int, Bool, T.Text, [Int], Double) "Tuple5"
+
+  , testRoundTripProp @(Compose (Either Int) Maybe Int) "Compose"
+  , testRoundTripProp @(Product (Either Int) Maybe Int) "Product"
+  , testRoundTripProp @(Sum Maybe Maybe Int) "Sum"
   ]

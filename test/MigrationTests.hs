@@ -14,6 +14,9 @@ import Control.Exception (try)
 import Control.Monad (forM)
 import Data.Aeson hiding (eitherDecodeFileStrict)
 import Data.Aeson as A (decodeFileStrict)
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.KeyMap as KM (KeyMap)
+#endif
 import Data.Aeson.Types (parseEither)
 import Data.DList (DList)
 import Data.Functor.Identity (Identity)
@@ -93,6 +96,9 @@ migrationTests = testGroup "Migrations"
     , parseCollection @IntMap     @Version4 "IntMap v4"   allVersioned $ toJSON . IntMap.fromList  . zip [1..] . fmap snd
     , parseCollection @(Map Text) @Version4 "Map v4"      allVersioned objectList
     , parseCollection @(HashMap Text) @Version4 "HashMap v4" allVersioned objectList
+#if MIN_VERSION_aeson(2,0,0)
+    , parseCollection @KM.KeyMap  @Version4 "Aeson.KeyMap v4" allVersioned objectList
+#endif
     , parseCollection @Set        @Version4 "Set v4"      allVersioned singleList
     , parseCollection @HashSet    @Version4 "HashSet v4"  allVersioned singleList
     , parseCollection @Seq        @Version4 "Seq v4"      allVersioned singleList
@@ -224,6 +230,6 @@ parseCollectionFail :: forall f a.
                     => String -> [String] -> ([(Text,Value)] -> Value) -> TestTree
 parseCollectionFail = parseCollection' @f @a go
   where go :: IO () -> IO ()
-        go io = try io >>= \case
-            Left e -> return () `const` (e :: HUnitFailure)
+        go io = try @HUnitFailure io >>= \case
+            Left{} -> pure ()
             Right{} -> assertFailure "Should have failed"

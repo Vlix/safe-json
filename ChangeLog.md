@@ -1,5 +1,12 @@
 # Changelog for safe-json
 
+## 1.1.2.0
+
+* Aeson <= 2.0.2.0 compatibility (https://cs-syd.eu/posts/2021-09-11-json-vulnerability)
+    * Fix internal code to work with new `Key` and `KeyMap` from `aeson-2.0.0.0` [#28] Thanks to @dysinger
+    * Added `SafeJSON` instances for `Key` and `KeyMap` [#29]
+    * Added `SafeJSON` instances for `Compose`, `Product` and `Sum` [#29]
+
 ## 1.1.1.1
 
 * loosened dependecy restriction on `tasty`

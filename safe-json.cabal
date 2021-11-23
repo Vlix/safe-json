@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 86067e120dfec8c9dc798d449e9cb49742ac226a9fdd8c1d18884bc4d50f4f74
+-- hash: 8355ba082d5b33671f6951544a67e1c0874971b8a3b339abe51a00d2d381641f
 
 name:           safe-json
-version:        1.1.1.1
+version:        1.1.2.0
 synopsis:       Automatic JSON format versioning
 description:    This library aims to make the updating of JSON formats or contents, while keeping backward compatibility, as painless as possible. The way this is achieved is through versioning and defined migration functions to migrate older (or newer) versions to the one used.
                 .
@@ -64,7 +64,7 @@ library
   default-extensions:
       OverloadedStrings
   build-depends:
-      aeson >=1.4.1 && <1.6
+      aeson >=1.4.1 && <2.1
     , base >=4.9 && <5
     , bytestring >=0.10.8.1 && <0.11
     , containers >=0.5.7.1 && <0.7
@@ -102,7 +102,7 @@ test-suite safe-json-test
       OverloadedStrings
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson >=1.4.1 && <1.6
+      aeson >=1.4.1 && <2.1
     , base >=4.9 && <5
     , bytestring >=0.10.8.1 && <0.11
     , containers >=0.5.7.1 && <0.7
@@ -110,7 +110,7 @@ test-suite safe-json-test
     , generic-arbitrary >=0.1.0 && <0.3
     , hashable >=1.2.6.1 && <1.4
     , quickcheck-instances >=0.3.16 && <0.4
-    , safe-json >=1.0 && <1.2
+    , safe-json
     , scientific >=0.3.5.2 && <0.4
     , tasty
     , tasty-hunit
