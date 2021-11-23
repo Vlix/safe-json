@@ -864,7 +864,7 @@ instance (FromJSON a, ToJSON a, Integral a) => SafeJSON (Ratio a) where
   typeName = typeName1
   version = noVersion
 
-instance (HasResolution a) => SafeJSON (Fixed a) where
+instance HasResolution a => SafeJSON (Fixed a) where
   typeName = typeName1
   version = noVersion
 
@@ -1037,6 +1037,7 @@ instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON 
   version = noVersion
 
 #if MIN_VERSION_aeson(2,0,0)
+-- | @since 1.1.2.0
 instance SafeJSON a => SafeJSON (Map.KeyMap a) where
   safeFrom val = contain $
 #if !MIN_VERSION_aeson(2,0,1)
@@ -1095,12 +1096,14 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d, SafeJSON e) => SafeJSO
   typeName = typeName5
   version = noVersion
 
+-- | @since 1.1.2.0
 instance SafeJSON (f (g a)) => SafeJSON (Compose f g a) where
     safeFrom val = contain $ Compose <$> safeFromJSON val
     safeTo (Compose val) = contain $ safeToJSON val
     typeName _ = "Compose"
     version = noVersion
 
+-- | @since 1.1.2.0
 instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
     safeFrom = containWithObject "Sum" $ \o -> do
         case Map.toList o of
@@ -1113,6 +1116,7 @@ instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
     typeName _ = "Sum"
     version = noVersion
 
+-- | @since 1.1.2.0
 instance (SafeJSON (f a), SafeJSON (g a), SafeJSON a) => SafeJSON (Product f g a) where
     safeFrom val = contain $ do
         (f, g) <- parseJSON val
