@@ -231,5 +231,5 @@ parseCollectionFail :: forall f a.
 parseCollectionFail = parseCollection' @f @a go
   where go :: IO () -> IO ()
         go io = try @HUnitFailure io >>= \case
-            Left e -> return ()
+            Left{} -> pure ()
             Right{} -> assertFailure "Should have failed"

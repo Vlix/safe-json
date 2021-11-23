@@ -48,6 +48,7 @@ import Data.Functor.Compose (Compose (..))
 import Data.Functor.Product (Product (..))
 import Data.Functor.Sum (Sum(..))
 import Data.Hashable (Hashable)
+import Data.HashMap.Strict (HashMap)
 import qualified Data.HashSet as HS (HashSet, fromList, toList)
 import Data.Int (Int16, Int32, Int64, Int8)
 import Data.IntMap as IM (IntMap, fromList)
@@ -92,13 +93,11 @@ import Foreign.C.Types (CTime)
 import Numeric.Natural (Natural)
 import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
-import qualified Data.HashMap.Strict as HM (HashMap, fromList, insert, size, toList)
 #if MIN_VERSION_aeson(2,0,0)
 import qualified Data.Aeson.Key as K (Key)
 import qualified Data.Aeson.KeyMap as Map (KeyMap, delete, fromMap, insert, lookup, size, toList)
 #else
 import qualified Data.HashMap.Strict as Map (delete, insert, lookup, size, toList)
-import Data.Traversable (Traversable)
 #endif
 
 -- | A type that can be converted from and to JSON with versioning baked
@@ -994,7 +993,13 @@ instance SafeJSON a => SafeJSON (T a) where {       \
 BASIC_UNARY_FUNCTOR(NonEmpty)
 BASIC_UNARY_FUNCTOR(Seq)
 BASIC_UNARY_FUNCTOR(Tree)
-BASIC_UNARY_FUNCTOR(IntMap)
+
+instance SafeJSON a => SafeJSON (IntMap a) where
+  safeFrom val = contain $
+      IM.fromList <$> safeFromJSON val
+  safeTo as = contain . toJSON $ safeToJSON <$> as
+  typeName = typeName1
+  version = noVersion
 
 instance (SafeJSON a) => SafeJSON (DList a) where
   safeFrom val = contain $
@@ -1024,7 +1029,7 @@ instance (SafeJSON a, Eq a, Hashable a) => SafeJSON (HS.HashSet a) where
   typeName = typeName1
   version = noVersion
 
-instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON (HM.HashMap a b) where
+instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON (HashMap a b) where
   safeFrom val = contain $
       parseJSON val >>= traverse safeFromJSON
   safeTo as = contain . toJSON $ safeToJSON <$> as

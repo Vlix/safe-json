@@ -34,7 +34,7 @@ import Data.Semigroup (First, Last, Max, Min)
 import Data.Sequence (Seq)
 import Data.Set (Set)
 import Data.String (fromString)
-import Data.Text as T (Text, unpack)
+import Data.Text as T (Text)
 import Data.Text.Lazy as LT (Text)
 import Data.Time
 import Data.Tree (Tree)

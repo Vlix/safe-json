@@ -6,7 +6,7 @@ module Version where
 
 
 import Control.Exception (handle)
-import Control.Monad (when)
+import Control.Monad (unless)
 import qualified Data.Aeson as A
 #if MIN_VERSION_aeson(2,0,0)
 import qualified Data.Aeson.KeyMap as KM
@@ -14,7 +14,6 @@ import qualified Data.Map.Strict as M
 #endif
 import Data.Aeson.Safe
 import Data.String (fromString)
-import Data.Text as T
 import Test.Tasty as Tasty
 import Test.Tasty.HUnit as Tasty
 import Test.Tasty.QuickCheck as Tasty
@@ -89,7 +88,7 @@ parseSetVersionFail s val actual = parseAnd s go
           failed <- handle err $ do
               assertEqual "Without: after version added" safeVal $ setVersion @a without
               return False
-          when (not failed) $ assertFailure "Expected to fail"
+          unless failed $ assertFailure "Expected to fail"
           assertEqual "Unexpected behaviour" actual $ setVersion @a without
 
 -- | Given a field in the "version.json" object, tries to
@@ -104,7 +103,7 @@ parseRemoveVersion t val = parseAnd t go
 
 parseAnd :: SafeJSON a => String -> ((a,Value) -> IO ()) -> TestTree
 parseAnd s f = testCase s $
-    A.decodeFileStrict ("test/json/setremoveversion.json")
+    A.decodeFileStrict "test/json/setremoveversion.json"
       >>= maybe (assertFailure "couldn't read file")
                 (either fail f . parseEither go)
   where go = A.withObject "test" $ \o -> do
@@ -112,13 +111,13 @@ parseAnd s f = testCase s $
 #if MIN_VERSION_aeson(2,0,0)
                 let o2 = KM.fromList $ M.toList o'
 #else
-                let o2 = id o'
+                let o2 = o'
 #endif
                 with <- o2 .: "with" >>= safeFromJSON
                 without <- o2 .: "without"
                 pure (with, without)
 
-data TestObject a = TestObject {
+newtype TestObject a = TestObject {
   testObject :: a
 } deriving (Eq, Show)
 
@@ -149,7 +148,7 @@ instance SafeJSON TestArray where
 ------------ USED FOR TESTING VERSION OVERRIDE -----------
 ------------ USED FOR TESTING VERSION OVERRIDE -----------
 
-data TestObject2 a = TestObject2 {
+newtype TestObject2 a = TestObject2 {
   testObject2 :: a
 } deriving (Eq, Show)
 
