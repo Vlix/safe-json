@@ -527,10 +527,9 @@ import Data.Aeson.Safe as Safe
 
 foo = do
   res <- httpLbs theRequest
-  let eVal = Safe.eitherDecode $ responseBody res :: [ThirdType]
-  case eVal of
+  case Safe.eitherDecode @[ThirdType] $ responseBody res of
     Left err  -> putStrLn $ "bad value in response: " ++ err
-    Right tts -> withAllVersionsToThird tts
+    Right tts -> print tts
 ```
 
 The HTTP response would maybe look something like this:
@@ -740,7 +739,8 @@ instance SafeJSON Message where
 
 instance Migrate (Reverse Message) where
   type MigrateFrom (Reverse Message) = Message_v0
-  migrate Message_v0{..} = Message
+  migrate Message_v0{..} = Reverse $ 
+    Message
       msgId
       msgCommand
       piPerson
