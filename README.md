@@ -527,10 +527,16 @@ import Data.Aeson.Safe as Safe
 
 foo = do
   res <- httpLbs theRequest
-  let eVal = Safe.eitherDecode $ responseBody res :: [ThirdType]
-  case eVal of
+  -- Since we've defined the instance for `SafeJSON` and `Migrate`
+  -- FirstType and SecondType can now migrate to `ThirdType`
+  -- Resulting in `Right [ThirdType]` in this transformation.
+  case Safe.eitherDecode @[ThirdType] $ responseBody res of
     Left err  -> putStrLn $ "bad value in response: " ++ err
-    Right tts -> withAllVersionsToThird tts
+    Right tts -> thirdTypeHandler tts
+
+thirdTypeHandler :: [ThirdType] -> IO ()
+thirdTypeHandler = ...
+
 ```
 
 The HTTP response would maybe look something like this:
@@ -740,7 +746,8 @@ instance SafeJSON Message where
 
 instance Migrate (Reverse Message) where
   type MigrateFrom (Reverse Message) = Message_v0
-  migrate Message_v0{..} = Message
+  migrate Message_v0{..} = Reverse $ 
+    Message
       msgId
       msgCommand
       piPerson
