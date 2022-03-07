@@ -9,7 +9,7 @@ module Instances (
 
 
 import Data.Aeson
-#if MIN_VERSION_aeson(2,0,0)
+#if MIN_VERSION_aeson(2,0,0) && !MIN_VERSION_aeson(2,0,3)
 import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
 #endif
@@ -19,10 +19,11 @@ import Data.Time (NominalDiffTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import qualified Data.Vector.Primitive as VP
 
-#if MIN_VERSION_base(4,13,0)
+#if !MIN_VERSION_base(4,13,0)
+import Test.Tasty.QuickCheck (Arbitrary(..))
+#endif
+#if !MIN_VERSION_aeson(2,0,3)
 import Test.Tasty.QuickCheck (oneof, resize)
-#else
-import Test.Tasty.QuickCheck (Arbitrary(..), oneof, resize)
 #endif
 import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances()
@@ -46,6 +47,7 @@ instance (Arbitrary a, VP.Prim a) => Arbitrary (VP.Vector a) where
   arbitrary = VP.fromList <$> arbitrary
   shrink = fmap VP.fromList . shrink . VP.toList
 
+#if !MIN_VERSION_aeson(2,0,3)
 instance Arbitrary Value where
   arbitrary = oneof
     [ resize 5 $ Object <$> arbitrary
@@ -56,6 +58,7 @@ instance Arbitrary Value where
     , pure Null
     ]
   shrink = genericShrink
+#endif
 
 #if !MIN_VERSION_aeson(1,5,2)
 -- | This is here just to test 'Set' in 'parseCollection'
@@ -79,7 +82,7 @@ instance Ord Value where
   _        `compare` _        = GT
 #endif
 
-#if MIN_VERSION_aeson(2,0,0)
+#if MIN_VERSION_aeson(2,0,0) && !MIN_VERSION_aeson(2,0,3)
 instance Arbitrary v => Arbitrary (KM.KeyMap v) where
     arbitrary = KM.fromList <$> arbitrary
 
