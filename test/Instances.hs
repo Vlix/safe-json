@@ -81,7 +81,7 @@ instance Ord Value where
   _        `compare` _        = GT
 #endif
 
-#if !MIN_VERSION_aeson(2,0,3)
+#if MIN_VERSION_aeson(2,0,0) && !MIN_VERSION_aeson(2,0,3)
 instance Arbitrary v => Arbitrary (KM.KeyMap v) where
     arbitrary = KM.fromList <$> arbitrary
 
