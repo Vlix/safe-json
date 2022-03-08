@@ -10,7 +10,7 @@ jobs:
   cabal:
     name: cabal / ${{ matrix.os }} / ghc ${{ matrix.ghc }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.ghc == '9.0.1' }}
+    continue-on-error: ${{ matrix.ghc == '9.2.2' }}
     strategy:
       matrix:
         os:
@@ -18,13 +18,12 @@ jobs:
           - macOS-latest
         cabal: ["latest"]
         ghc:
-          - "8.0.2"
-          - "8.2.2"
           - "8.4.4"
           - "8.6.5"
           - "8.8.4"
           - "8.10.7"
-          - "9.0.1"
+          - "9.0.2"
+          - "9.2.2"
 
     steps:
     - uses: actions/checkout@v2
@@ -66,13 +65,11 @@ jobs:
       matrix:
         stack: ["latest"]
         resolver:
-          - "--resolver lts-9  --stack-yaml ./stack_lts-9.yaml"  # GHC 8.0.2
-          - "--resolver lts-11 --stack-yaml ./stack_lts-12.yaml" # GHC 8.2.2
           - "--resolver lts-12 --stack-yaml ./stack_lts-12.yaml" # GHC 8.4.4
           - "--resolver lts-14" # GHC 8.6.5
           - "--resolver lts-16" # GHC 8.8.4
           - "--resolver lts-18" # GHC 8.10.7
-          - "--resolver nightly" # GHC 9.0.1
+          - "--resolver nightly" # GHC 9.0.2
 
     steps:
     - uses: actions/checkout@v2
