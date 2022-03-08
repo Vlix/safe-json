@@ -46,6 +46,7 @@ instance (Arbitrary a, VP.Prim a) => Arbitrary (VP.Vector a) where
   arbitrary = VP.fromList <$> arbitrary
   shrink = fmap VP.fromList . shrink . VP.toList
 
+#if !MIN_VERSION_aeson(2,0,3)
 instance Arbitrary Value where
   arbitrary = oneof
     [ resize 5 $ Object <$> arbitrary
@@ -56,6 +57,7 @@ instance Arbitrary Value where
     , pure Null
     ]
   shrink = genericShrink
+#endif
 
 #if !MIN_VERSION_aeson(1,5,2)
 -- | This is here just to test 'Set' in 'parseCollection'
@@ -79,7 +81,7 @@ instance Ord Value where
   _        `compare` _        = GT
 #endif
 
-#if MIN_VERSION_aeson(2,0,0)
+#if MIN_VERSION_aeson(2,0,0) && !MIN_VERSION_aeson(2,0,3)
 instance Arbitrary v => Arbitrary (KM.KeyMap v) where
     arbitrary = KM.fromList <$> arbitrary
 
