@@ -95,7 +95,10 @@ import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
 #if MIN_VERSION_aeson(2,0,0)
 import qualified Data.Aeson.Key as K (Key)
-import qualified Data.Aeson.KeyMap as Map (KeyMap, delete, fromMap, insert, lookup, size, toList)
+import qualified Data.Aeson.KeyMap as Map (KeyMap, delete, insert, lookup, size, toList)
+#if !MIN_VERSION_aeson(2,0,1)
+import qualified Data.Aeson.KeyMapp as Map (fromMap)
+#endif
 #else
 import qualified Data.HashMap.Strict as Map (delete, insert, lookup, size, toList)
 #endif
