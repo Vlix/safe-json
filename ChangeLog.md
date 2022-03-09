@@ -1,11 +1,16 @@
 # Changelog for safe-json
 
+## 1.1.3.0
+
+* Compatibility with `aeson < 2.1` and `text < 2.1` [#33](https://github.com/Vlix/safe-json/pull/33) Thanks to [@ysangkok](https://github.com/ysangkok)
+* Compatibility with `bytestring < 0.12`.
+
 ## 1.1.2.0
 
 * Aeson <= 2.0.2.0 compatibility (https://cs-syd.eu/posts/2021-09-11-json-vulnerability)
-    * Fix internal code to work with new `Key` and `KeyMap` from `aeson-2.0.0.0` [#28] Thanks to @dysinger
-    * Added `SafeJSON` instances for `Key` and `KeyMap` [#29]
-    * Added `SafeJSON` instances for `Compose`, `Product` and `Sum` [#29]
+    * Fix internal code to work with new `Key` and `KeyMap` from `aeson-2.0.0.0` [#28](https://github.com/Vlix/safe-json/pull/28) Thanks to [@dysinger](https://github.com/dysinger)
+    * Added `SafeJSON` instances for `Key` and `KeyMap` [#29](https://github.com/Vlix/safe-json/pull/29)
+    * Added `SafeJSON` instances for `Compose`, `Product` and `Sum` [#29](https://github.com/Vlix/safe-json/pull/29)
 
 ## 1.1.1.1
 
@@ -14,15 +19,15 @@
 
 ## 1.1.1
 
-* Fix clash in `test/Instances.hs` of `Ord` instance for `Data.Aeson.Value` [#23]
+* Fix clash in `test/Instances.hs` of `Ord` instance for `Data.Aeson.Value` [#23](https://github.com/Vlix/safe-json/pull/23)
 
 ## 1.1.0
 
-* update for GHC 8.8.1 [#15]
+* update for GHC 8.8.1 [#15](https://github.com/Vlix/safe-json/pull/15)
     * loosened dependency restriction on `time`
     * fixed instance for IntMap
-* DRY-er `TestMigrate` and `TestReverseMigrate` type synonyms [#17] Thanks to @blinkytoy
-* fixed documentation [#17] Thanks to @blinkytoy
+* DRY-er `TestMigrate` and `TestReverseMigrate` type synonyms [#17](https://github.com/Vlix/safe-json/pull/17) Thanks to [@blinkytoy](https://github.com/blinkytoy)
+* fixed documentation [#17](https://github.com/Vlix/safe-json/pull/17) Thanks to [@blinkytoy](https://github.com/blinkytoy)
     * broken links to modules
     * `setVersion`'s documentation only showing half
 
