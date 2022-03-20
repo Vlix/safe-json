@@ -19,13 +19,11 @@ import Data.Time (NominalDiffTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import qualified Data.Vector.Primitive as VP
 
-#if !MIN_VERSION_base(4,13,0)
 import Test.Tasty.QuickCheck (Arbitrary(..))
-#endif
 #if !MIN_VERSION_aeson(2,0,3)
 import Test.Tasty.QuickCheck (oneof, resize)
+import Test.QuickCheck.Arbitrary.Generic (genericShrink)
 #endif
-import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances()
 
 instance Arbitrary DotNetTime where
@@ -46,6 +44,14 @@ instance Arbitrary a => Arbitrary (DList a) where
 instance (Arbitrary a, VP.Prim a) => Arbitrary (VP.Vector a) where
   arbitrary = VP.fromList <$> arbitrary
   shrink = fmap VP.fromList . shrink . VP.toList
+
+#if MIN_VERSION_aeson(2,0,0) && !MIN_VERSION_aeson(2,0,3)
+instance Arbitrary v => Arbitrary (KM.KeyMap v) where
+    arbitrary = KM.fromList <$> arbitrary
+
+instance Arbitrary K.Key where
+    arbitrary = K.fromText <$> arbitrary
+#endif
 
 #if !MIN_VERSION_aeson(2,0,3)
 instance Arbitrary Value where
@@ -80,12 +86,4 @@ instance Ord Value where
   String{} `compare` _        = LT
   Array{}  `compare` Object{} = LT
   _        `compare` _        = GT
-#endif
-
-#if MIN_VERSION_aeson(2,0,0) && !MIN_VERSION_aeson(2,0,3)
-instance Arbitrary v => Arbitrary (KM.KeyMap v) where
-    arbitrary = KM.fromList <$> arbitrary
-
-instance Arbitrary K.Key where
-    arbitrary = K.fromText <$> arbitrary
 #endif
