@@ -1,5 +1,9 @@
 # Changelog for safe-json
 
+## 1.1.3.1
+
+* Compatibility with GHC 9.2.*, and `time < 0.13`
+
 ## 1.1.3.0
 
 * Compatibility with `aeson < 2.1` and `text < 2.1` [#33](https://github.com/Vlix/safe-json/pull/33) Thanks to [@ysangkok](https://github.com/ysangkok)
