@@ -9,7 +9,7 @@ import Test.Tasty.QuickCheck as Tasty
 
 numTest :: (Num a, Eq a, Arbitrary a, Show a) => Proxy a -> TestTree
 numTest p = testGroup "Version's Num instance" $
-    ($p) <$> [plusTest, minusTest, multTest, negateTest, absSignumTest]
+    ($ p) <$> [plusTest, minusTest, multTest, negateTest, absSignumTest]
 
 plusTest :: forall a. (Num a, Eq a, Arbitrary a, Show a) => Proxy a -> TestTree
 plusTest _ = testGroup "Plus laws"
