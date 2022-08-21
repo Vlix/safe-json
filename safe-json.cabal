@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
 
 name:           safe-json
-version:        1.1.3.0
+version:        1.1.3.1
 synopsis:       Automatic JSON format versioning
 description:    This library aims to make the updating of JSON formats or contents, while keeping backward compatibility, as painless as possible. The way this is achieved is through versioning and defined migration functions to migrate older (or newer) versions to the one used.
                 .
@@ -28,7 +28,7 @@ license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 tested-with:
-    GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.7, GHC == 9.0.2
+    GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.7, GHC == 9.0.2, GHC == 9.2.4, GHC == 9.4.1
 extra-source-files:
     README
     ChangeLog.md
@@ -62,7 +62,7 @@ library
   default-extensions:
       OverloadedStrings
   build-depends:
-      aeson >=1.4.1 && <2.1
+      aeson >=1.4.1 && <2.2
     , base >=4.9 && <5
     , bytestring >=0.10.8.1 && <0.12
     , containers >=0.5.7.1 && <0.7
@@ -76,7 +76,7 @@ library
     , time >=1.6.0.1 && <1.13
     , unordered-containers >=0.2.9 && <0.3
     , uuid-types >=1.0.3 && <1.1
-    , vector >=0.12.0.1 && <0.13
+    , vector >=0.12.0.1 && <0.14
   default-language: Haskell2010
 
 test-suite safe-json-test
@@ -117,12 +117,12 @@ test-suite safe-json-test
     , unordered-containers >=0.2.9 && <0.3
     , uuid >=1.3.13 && <1.4
     , uuid-types >=1.0.3 && <1.1
-    , vector >=0.12.0.1 && <0.13
+    , vector >=0.12.0.1 && <0.14
   if impl(ghc >= 9.2.0)
     build-depends:
-        aeson >=2.0.3.0 && <2.1
+        aeson >=2.0.3.0 && <2.2
   else
     build-depends:
-        aeson >=1.4.1 && <2.1
+        aeson >=1.4.1 && <2.2
       , generic-arbitrary >=0.1.0 && <0.3
   default-language: Haskell2010
