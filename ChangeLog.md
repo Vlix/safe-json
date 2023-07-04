@@ -1,5 +1,9 @@
 # Changelog for safe-json
 
+## 1.1.4.0
+
+* Compatibility with GHC 9.4.*, and `aeson < 2.3`
+
 ## 1.1.3.1
 
 * Compatibility with GHC 9.2.*, and `time < 0.13`
