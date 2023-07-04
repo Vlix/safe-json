@@ -818,10 +818,14 @@ containWithBool = withContained withBool
 -- to convert the value in that key-value pair.
 --
 -- @since 1.0.0
+#if MIN_VERSION_aeson(2,2,0)
+(.=$) :: (SafeJSON a, KeyValue e kv) => Key -> a -> kv
+#else
 #if MIN_VERSION_aeson(2,0,0)
 (.=$) :: (SafeJSON a, KeyValue kv) => Key -> a -> kv
 #else
 (.=$) :: (SafeJSON a, KeyValue kv) => Text -> a -> kv
+#endif
 #endif
 name .=$ val = name .= safeToJSON val
 
