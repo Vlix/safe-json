@@ -15,7 +15,7 @@ tested-with:         GHC == 8.10.7
                    , GHC == 9.6.2
 
 extra-source-files:
-- README
+- README.md
 - ChangeLog.md
 - test/json/*
 

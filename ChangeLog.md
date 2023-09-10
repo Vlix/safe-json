@@ -1,5 +1,11 @@
 # Changelog for safe-json
 
+## 1.2.0.0
+
+* Compatibility with GHC 9.6.* and `tasty < 1.6`
+* Removed `SafeJSON a` constraint on `SafeJSON (Product f g a)`
+* Added `getVersion` function to check a `Data.Aeson.Value` for a `SafeJSON` version
+
 ## 1.1.4.0
 
 * Compatibility with GHC 9.4.*, and `aeson < 2.3`
