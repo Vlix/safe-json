@@ -13,6 +13,7 @@ import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Map.Strict as M
 #endif
 import Data.Aeson.Safe
+import Data.Int (Int32)
 import Data.String (fromString)
 import Test.Tasty as Tasty
 import Test.Tasty.HUnit as Tasty
@@ -25,6 +26,7 @@ versionFuncTests :: TestTree
 versionFuncTests = testGroup "Version functions"
   [ consistency
   , setTest
+  , getTest
   , removeTest
   ]
 
@@ -59,6 +61,30 @@ setTest = testGroup "Set version"
         assertEqual "Version override failed" (safeToJSON arr3) (setVersion @TestArray3 val1)
     ]
   where go t = object [ "test" .= String t ]
+
+getTest :: TestTree
+getTest =
+    testGroup "Get version"
+        [ testVersion @(TestObject Int) $ Just 0
+        , testVersion @TestArray $ Just 1
+        , testVersion @(TestObject2 [String]) $ Just 2
+        , testVersion @TestArray3 $ Just 3
+        , testCase "BareArray -> \"~v\"/\"~d\"" $ do
+            let arr = [1,2,3] :: [Int]
+                val = safeToJSON (BareArray @Int arr)
+                parseBareArray = withObject "BareArray" $ \o -> do
+                    v <- o .: "~v"
+                    d <- o .: "~d"
+                    pure (v, d)
+            assertEqual "Should contain \"~v\" field" (Just (7 :: Int, arr)) $
+              parseMaybe parseBareArray val
+        , testVersion @(BareArray Int) $ Just 7
+        ]
+  where
+    testVersion :: forall t. (Arbitrary t, Eq t, SafeJSON t, Show t) => Maybe Int32 -> TestTree
+    testVersion expected =
+        testProperty (typeName @t Proxy) $ \val ->
+            expected === getVersion (safeToJSON @t val)
 
 removeTest :: TestTree
 removeTest = testGroup "Remove version"
@@ -173,3 +199,15 @@ instance SafeJSON TestArray3 where
   safeFrom = contain . fmap TestArray3 . safeFromJSON
   safeTo (TestArray3 is) = contain $ safeToJSON is
   version = 3
+
+newtype BareArray a = BareArray [a]
+  deriving (Eq, Show)
+
+instance Arbitrary a => Arbitrary (BareArray a) where
+  arbitrary = BareArray <$> arbitrary
+
+instance SafeJSON a => SafeJSON (BareArray a) where
+  safeFrom = contain . fmap BareArray . safeFromJSON
+  safeTo (BareArray arr) = contain $ safeToJSON arr
+  typeName = typeName1
+  version = 7

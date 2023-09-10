@@ -89,6 +89,7 @@ module Data.SafeJSON
     , noVersion
     , setVersion
     , setVersion'
+    , getVersion
     , removeVersion
     -- ** Kind
     --

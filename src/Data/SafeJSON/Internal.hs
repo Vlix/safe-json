@@ -40,7 +40,7 @@ import Control.Monad.Fail (MonadFail)
 #endif
 import Control.Monad (when)
 import Data.Aeson
-import Data.Aeson.Types (Parser, explicitParseField, explicitParseFieldMaybe, explicitParseFieldMaybe')
+import Data.Aeson.Types (Parser, explicitParseField, explicitParseFieldMaybe, explicitParseFieldMaybe', parseMaybe)
 import Data.DList as DList (DList, fromList)
 import Data.Fixed (Fixed, HasResolution)
 import Data.Functor.Identity (Identity(..))
@@ -241,6 +241,26 @@ newtype Version a = Version {unVersion :: Maybe Int32}
 --   /'version' tag./
 noVersion :: Version a
 noVersion = Version Nothing
+
+-- | Returns the 'SafeJSON' version if the 'Value' has one.
+--
+-- 'Nothing' means one of the following:
+--
+-- * the 'Value' is not an 'Object';
+-- * no version field could be found; or,
+-- * the version field did not have a number
+--
+-- @since 1.2.0.0
+getVersion :: Value -> Maybe Int32
+getVersion (Object o) =
+    case Map.toList o of
+        [(k1, v1), (k2, v2)]
+            | k1 == dataVersionField && k2 == dataField -> parseInt v1
+            | k2 == dataVersionField && k1 == dataField -> parseInt v2
+        _ -> Map.lookup versionField o >>= parseInt
+  where
+    parseInt = parseMaybe parseJSON
+getVersion _ = Nothing
 
 -- | Same as 'setVersion', but requires a 'Version' parameter.
 --
