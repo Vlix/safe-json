@@ -1,5 +1,5 @@
 name:                safe-json
-version:             1.1.4.0
+version:             1.2.0.0
 github:              "Vlix/safe-json"
 license:             MIT
 author:              "Felix Paulusma"
@@ -15,7 +15,7 @@ tested-with:         GHC == 8.10.7
                    , GHC == 9.6.2
 
 extra-source-files:
-- README
+- README.md
 - ChangeLog.md
 - test/json/*
 

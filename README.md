@@ -1,4 +1,4 @@
-[![Build Status](https://secure.travis-ci.org/Vlix/safe-json.svg?branch=master)](https://travis-ci.org/Vlix/safe-json)
+![Build Status](https://github.com/Vlix/safe-json/actions/workflows/ci.yml/badge.svg?branch=master)
 [![Hackage](https://img.shields.io/hackage/v/safe-json.svg)](https://hackage.haskell.org/package/safe-json)
 [![Stackage LTS](http://stackage.org/package/safe-json/badge/lts)](http://stackage.org/lts/package/safe-json)
 [![Stackage Nightly](http://stackage.org/package/safe-json/badge/nightly)](http://stackage.org/nightly/package/safe-json)
@@ -101,13 +101,11 @@ So given that your type already has `FromJSON` and `ToJSON` instances
 would be the following:
 
 ```haskell
-instance SafeJSON MyType where
-  version = 0
-  kind = base
+instance SafeJSON MyType
 ```
 
-This will add the `version` tag as `0` and indicates this is the
-first/bottom type in the migration chain.
+This will set the `version` tag as `0` and assumes this type
+can only be migrated forward in the migration chain.
 
 ---
 
@@ -227,7 +225,14 @@ data OldType = OldType Text
 data NewType = NewType [Text]
 
 instance Migrate NewType where
+  -- Read this as:
+  -- > type MigrateFrom a = b
+  -- "The type you migrate from to the 'a' is 'b'"
+  --   or
+  -- "'b' is the type you migrate from to get 'a'
   type MigrateFrom NewType = OldType
+  -- Here we define how to change the structure
+  -- from one type to the other.
   migrate (OldType txt) = NewType [txt]
 ```
 
@@ -273,6 +278,10 @@ at least `testConsistency` of any type you create a `SafeJSON` instance
 for. This makes sure you don't have any inconsistencies in your
 migration chain, which would result in failed parsing of your type(s).
 
+I would also advise to use `migrateRoundTripProp` or `migrateReverseRoundTripProp`
+whenever you add new migrations, to be sure they are parsable, and that
+you didn't forget to adjust the `kind` definition in the `SafeJSON` instances.
+
 ### Using `noVersion`
 
 There is a way to omit the version tag. It's by using `noVersion` instead
@@ -295,10 +304,10 @@ need to include it as soon as possible; since, if the JSON being parsed has no
 version (because it might be a completely different message), having a
 `noVersion` type in your chain alone will make it try to parse it as such. In
 some cases this might lead to a succesful parse, even though it's a completely
-different JSON message. For that reason, it is advised to remove the vNil from
+different JSON message. For that reason, it is advised to remove the _vNil_ from
 your chain as soon as possible.
 
-As long as there is a version number in the JSON, though, vNil will not be
+As long as there is a version number in the JSON, though, _vNil_ will not be
 attempted to be parsed, since "a version" doesn't match "no version".
 
 ### Using `setVersion` and `removeVersion`
@@ -346,8 +355,8 @@ instance SafeJSON MyType where
 incomingJSON = toJSON [MyType, MyType]
 ```
 
-```haskell
-WRONG: this will not parse using SafeJSON functions.
+```bash
+# WRONG: this will not parse using SafeJSON functions.
 
 λ> encode $ setVersion @MyType incomingJSON
 {
@@ -358,8 +367,8 @@ WRONG: this will not parse using SafeJSON functions.
 }
 ```
 
-```haskell
-RIGHT: This will parse using SafeJSON functions.
+```bash
+# RIGHT: This will parse using SafeJSON functions.
 
 λ> Just vals = parseMaybe safeFromJSON/parseJSON incomingJSON :: Maybe [Value]
 λ> encode $ setVersion @MyType <$> vals
@@ -394,7 +403,7 @@ Value has more relative overhead than the tag added to a JSON object.
 (min. 14 bytes and min. 7 bytes, respectively)
 
 To keep general overhead low, it is advised to version your entire message,
-and only version individual fields if necessary.
+and only version individual fields if really necessary.
 
 # Examples
 
@@ -523,12 +532,13 @@ program can just use a function from the `Data.Aeson.Safe`
 module, like `eitherDecode`, to parse the `ByteString` body:
 
 ```haskell
+{-# LANGUAGE TypeApplications #-}
 import Data.Aeson.Safe as Safe
 
 foo = do
   res <- httpLbs theRequest
   -- Since we've defined the instance for `SafeJSON` and `Migrate`
-  -- FirstType and SecondType can now migrate to `ThirdType`
+  -- `FirstType` and `SecondType` can now migrate to `ThirdType`
   -- Resulting in `Right [ThirdType]` in this transformation.
   case Safe.eitherDecode @[ThirdType] $ responseBody res of
     Left err  -> putStrLn $ "bad value in response: " ++ err
@@ -746,7 +756,7 @@ instance SafeJSON Message where
 
 instance Migrate (Reverse Message) where
   type MigrateFrom (Reverse Message) = Message_v0
-  migrate Message_v0{..} = Reverse $ 
+  migrate Message_v0{..} = Reverse $
     Message
       msgId
       msgCommand
@@ -903,9 +913,10 @@ instances and the migration instances to migrate between the two),
 and one branch with the new code that will use the new type.
 
 * Use the original branch to update your running services to
-  make them ready to migrate from the new JSON formats.
-* After all services are using the new `SafeJSON` code, update
-  your services with the code on the new branch.
+  make them ready to migrate from the new JSON formats to
+  the ones currently used.
+* After all services are running using the new `SafeJSON` code,
+  update your services with the code on the new branch.
 
 Enjoy a migration where all services keep parsing all JSON they
 receive.
