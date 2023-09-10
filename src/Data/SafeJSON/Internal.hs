@@ -1124,7 +1124,7 @@ instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
     version = noVersion
 
 -- | @since 1.1.2.0
-instance (SafeJSON (f a), SafeJSON (g a), SafeJSON a) => SafeJSON (Product f g a) where
+instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Product f g a) where
     safeFrom val = contain $ do
         (f, g) <- parseJSON val
         Pair <$> safeFromJSON f <*> safeFromJSON g
