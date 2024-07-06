@@ -26,17 +26,17 @@ jobs:
           - "9.10.1"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       #if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
 
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       id: setup-haskell-cabal
       name: Setup Haskell
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: ${{ matrix.cabal }}
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v4
       name: Cache cabal-store
       with:
         path: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
@@ -73,16 +73,16 @@ jobs:
           - "--resolver nightly" # GHC 9.8.2
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       #if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell-actions/setup@v2
       name: Setup Haskell Stack
       with:
         stack-version: ${{ matrix.stack }}
         enable-stack: true
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v4
       name: Cache ~/.stack
       with:
         path: ~/.stack
