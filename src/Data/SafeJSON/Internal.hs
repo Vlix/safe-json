@@ -1151,3 +1151,9 @@ instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Product f g a) where
     safeTo (Pair f g) = contain $ toJSON (safeToJSON f, safeToJSON g)
     typeName _ = "Product"
     version = noVersion
+
+-- | safeToJSON with the version removed
+-- 
+-- @since 1.3.0.0
+strippedSafeToJSON :: forall a. SafeJSON a => a -> Value
+strippedSafeToJSON = removeVersion . safeToJSON

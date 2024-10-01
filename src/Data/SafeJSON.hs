@@ -23,6 +23,7 @@ module Data.SafeJSON
     --   make sure to add and read version numbers, and handle migration.
       safeToJSON
     , safeFromJSON
+    , strippedSafeToJSON
     -- * SafeJSON Class
     --
     -- | This class, together with 'Migrate', is where the magic happens!
