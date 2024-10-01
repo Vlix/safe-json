@@ -41,6 +41,7 @@ import Control.Monad.Fail (MonadFail)
 import Control.Monad (when)
 import Data.Aeson
 import Data.Aeson.Types (Parser, explicitParseField, explicitParseFieldMaybe, explicitParseFieldMaybe', parseMaybe)
+import qualified Data.ByteString.Lazy as LBS
 import Data.DList as DList (DList, fromList)
 import Data.Fixed (Fixed, HasResolution)
 import Data.Functor.Identity (Identity(..))
@@ -1157,3 +1158,9 @@ instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Product f g a) where
 -- @since 1.3.0.0
 strippedSafeToJSON :: forall a. SafeJSON a => a -> Value
 strippedSafeToJSON = removeVersion . safeToJSON
+
+-- | encode with version removed
+-- 
+-- @since 1.3.0.0
+strippedEncode :: forall a. SafeJSON a => a -> LBS.ByteString
+strippedEncode = encode . strippedSafeToJSON

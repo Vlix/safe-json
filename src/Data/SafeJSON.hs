@@ -24,6 +24,7 @@ module Data.SafeJSON
       safeToJSON
     , safeFromJSON
     , strippedSafeToJSON
+    , strippedEncode
     -- * SafeJSON Class
     --
     -- | This class, together with 'Migrate', is where the magic happens!
