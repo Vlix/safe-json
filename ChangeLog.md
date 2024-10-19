@@ -1,5 +1,8 @@
 # Changelog for safe-json
 
+## 1.3.0.0
+* Added `strippedSafeToJSON` and `strippedEncode`.
+
 ## 1.2.0.0
 
 * Compatibility with GHC 9.6.* and `tasty < 1.6`
