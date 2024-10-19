@@ -9,9 +9,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -90,6 +92,7 @@ import qualified Data.Version as DV (Version)
 import Data.Void (Void)
 import Data.Word (Word8, Word16, Word32, Word64)
 import Foreign.C.Types (CTime)
+import GHC.Generics (Generic)
 import Numeric.Natural (Natural)
 import Test.Tasty.QuickCheck (Arbitrary(..), shrinkIntegral)
 
@@ -102,6 +105,9 @@ import qualified Data.Aeson.KeyMapp as Map (fromMap)
 #else
 import qualified Data.HashMap.Strict as Map (delete, insert, lookup, size, toList)
 #endif
+
+newtype SafeValue = SafeValue {unSafeValue :: Value}
+  deriving (Eq, Read, Show, Generic, Hashable, FromJSON, ToJSON)
 
 -- | A type that can be converted from and to JSON with versioning baked
 --   in, using 'Migrate' to automate migration between versions, reducing
@@ -131,9 +137,9 @@ class SafeJSON a where
   --   can be modified if need be.
   --
   --   This function cannot be used directly. Use 'safeToJSON', instead.
-  safeTo :: a -> Contained Value
-  default safeTo :: ToJSON a => a -> Contained Value
-  safeTo = contain . toJSON
+  safeTo :: a -> Contained SafeValue
+  default safeTo :: ToJSON a => a -> Contained SafeValue
+  safeTo = contain . SafeValue .toJSON
 
   -- | This method defines how a value should be parsed without also worrying
   --   about writing out the version tag. The default implementation uses 'parseJSON',
@@ -251,8 +257,8 @@ noVersion = Version Nothing
 -- * the version field did not have a number
 --
 -- @since 1.2.0.0
-getVersion :: Value -> Maybe Int32
-getVersion (Object o) =
+getVersion :: SafeValue -> Maybe Int32
+getVersion (SafeValue (Object o)) =
     case Map.toList o of
         [(k1, v1), (k2, v2)]
             | k1 == dataVersionField && k2 == dataField -> parseInt v1
@@ -268,17 +274,17 @@ getVersion _ = Nothing
 -- "{\"~v\":0,\"~d\":\"test\"}"
 --
 -- @since 1.0.0
-setVersion' :: forall a. SafeJSON a => Version a -> Value -> Value
+setVersion' :: forall a. SafeJSON a => Version a -> SafeValue -> SafeValue
 setVersion' (Version mVersion) val =
   case mVersion of
     Nothing -> val
     Just i -> case val of
-      Object o ->
+      SafeValue (Object o) ->
           let vField = maybe versionField
                              (const dataVersionField)
                              $ dataVersionField `Map.lookup` o
-          in Object $ Map.insert vField (toJSON i) o
-      other -> object
+          in SafeValue $ Object $ Map.insert vField (toJSON i) o
+      other -> SafeValue $ object
           [ dataVersionField .= i
           , dataField .= other
           ]
@@ -315,7 +321,7 @@ setVersion' (Version mVersion) val =
 -- @
 --
 -- @since 1.0.0
-setVersion :: forall a. SafeJSON a => Value -> Value
+setVersion :: forall a. SafeJSON a => SafeValue -> SafeValue
 setVersion = setVersion' (version @a)
 
 -- | /CAUTION: Only use this function if you know what you're doing./
@@ -328,17 +334,32 @@ setVersion = setVersion' (version @a)
 --   should be hidden.
 --
 -- @since 1.0.0
-removeVersion :: Value -> Value
-removeVersion = \case
+-- removeVersion :: SafeValue -> Value
+-- removeVersion = \case
+--     SafeValue (Object o) -> go o
+--     -- Recursively find all version tags and remove them.
+--     SafeValue (Array a) -> SafeValue $ Array $ removeVersion <$> a
+--     other -> unSafeValue other
+--         -- Recursively find all version tags and remove them.
+--   where go o = maybe regular removeVersion $ do
+--                   _ <- dataVersionField `Map.lookup` o
+--                   dataField `Map.lookup` o
+--           where regular = SafeValue $ Object $ removeVersion <$> Map.delete versionField o
+
+removeVersion :: SafeValue -> Value
+removeVersion = removeVersion' . unSafeValue
+
+removeVersion' :: Value -> Value
+removeVersion' = \case
     Object o -> go o
     -- Recursively find all version tags and remove them.
-    Array a -> Array $ removeVersion <$> a
+    Array a -> Array $ removeVersion' <$> a
     other -> other
         -- Recursively find all version tags and remove them.
-  where go o = maybe regular removeVersion $ do
+  where go o = maybe regular removeVersion' $ do
                   _ <- dataVersionField `Map.lookup` o
                   dataField `Map.lookup` o
-          where regular = Object $ removeVersion <$> Map.delete versionField o
+          where regular = Object $ removeVersion' <$> Map.delete versionField o
 
 instance Show (Version a) where
   show (Version mi) = "Version " ++ showV mi
@@ -446,7 +467,7 @@ dataField = "~d"
 --   __This function does not check consistency of the 'SafeJSON' instances.__
 --   __It is advised to always 'Data.SafeJSON.Test.testConsistency' for all__
 --   __your instances in a production setting.__
-safeToJSON :: forall a. SafeJSON a => a -> Value
+safeToJSON :: forall a. SafeJSON a => a -> SafeValue
 safeToJSON a = case thisKind of
     Base          | isNothing i -> tojson
     Extended Base | isNothing i -> tojson
@@ -932,7 +953,7 @@ instance SafeJSON a => SafeJSON (Maybe a) where
   safeFrom val = contain $
       parseJSON val >>= traverse safeFromJSON
   -- Nothing means do whatever Aeson thinks Nothing should be
-  safeTo Nothing = contain $ toJSON (Nothing :: Maybe Value)
+  safeTo Nothing = contain $ SafeValue $ toJSON (Nothing :: Maybe Value)
   -- If there's something, keep it safe
   safeTo (Just a) = contain $ safeToJSON a
   typeName = typeName1
@@ -944,8 +965,8 @@ instance (SafeJSON a, SafeJSON b) => SafeJSON (Either a b) where
       case eVal of
         Left a  -> Left  <$> safeFromJSON a
         Right b -> Right <$> safeFromJSON b
-  safeTo (Left a)  = contain $ toJSON (Left  $ safeToJSON a :: Either Value Void)
-  safeTo (Right b) = contain $ toJSON (Right $ safeToJSON b :: Either Void Value)
+  safeTo (Left a)  = contain $ SafeValue $ toJSON (Left  $ safeToJSON a :: Either SafeValue Void)
+  safeTo (Right b) = contain $ SafeValue $ toJSON (Right $ safeToJSON b :: Either Void SafeValue)
   typeName = typeName2
   version = noVersion
 
@@ -968,8 +989,8 @@ fromGenericVector val = contain $ do
       v <- parseJSON val
       VG.convert <$> VG.mapM safeFromJSON (v :: V.Vector Value)
 
-toGenericVector :: (SafeJSON a, VG.Vector v a) => v a -> Contained Value
-toGenericVector = contain . toJSON . fmap safeToJSON . VG.toList
+toGenericVector :: (SafeJSON a, VG.Vector v a) => v a -> Contained SafeValue
+toGenericVector = contain . SafeValue . toJSON . fmap safeToJSON . VG.toList
 
 instance SafeJSON a => SafeJSON (V.Vector a) where
   safeFrom = fromGenericVector
@@ -1005,7 +1026,7 @@ instance (SafeJSON a, VG.Vector VU.Vector a) => SafeJSON (VU.Vector a) where
 instance  {-# OVERLAPPABLE #-} SafeJSON a => SafeJSON [a] where
   safeFrom val = contain $
       parseJSON val >>= traverse safeFromJSON
-  safeTo as = contain . toJSON $ safeToJSON <$> as
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
 
@@ -1013,7 +1034,7 @@ instance  {-# OVERLAPPABLE #-} SafeJSON a => SafeJSON [a] where
 instance SafeJSON a => SafeJSON (T a) where {       \
   safeFrom val = contain $                          \
       parseJSON val >>= traverse safeFromJSON;      \
-  safeTo as = contain . toJSON $ safeToJSON <$> as; \
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> as; \
   typeName = typeName1;                             \
   version = noVersion }
 
@@ -1024,42 +1045,42 @@ BASIC_UNARY_FUNCTOR(Tree)
 instance SafeJSON a => SafeJSON (IntMap a) where
   safeFrom val = contain $
       IM.fromList <$> safeFromJSON val
-  safeTo as = contain . toJSON $ safeToJSON <$> as
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
 
 instance (SafeJSON a) => SafeJSON (DList a) where
   safeFrom val = contain $
       DList.fromList <$> safeFromJSON val
-  safeTo as = contain . toJSON $ safeToJSON <$> as
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
 
 instance (SafeJSON a, Ord a) => SafeJSON (S.Set a) where
   safeFrom val = contain $
       S.fromList <$> safeFromJSON val
-  safeTo as = contain . toJSON $ safeToJSON <$> S.toList as
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> S.toList as
   typeName = typeName1
   version = noVersion
 
 instance (Ord k, FromJSONKey k, ToJSONKey k, SafeJSON a) => SafeJSON (Map k a) where
   safeFrom val = contain $
       parseJSON val >>= traverse safeFromJSON
-  safeTo as = contain . toJSON $ safeToJSON <$> as
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> as
   typeName = typeName2
   version = noVersion
 
 instance (SafeJSON a, Eq a, Hashable a) => SafeJSON (HS.HashSet a) where
   safeFrom val = contain $
       HS.fromList <$> safeFromJSON val
-  safeTo as = contain . toJSON $ safeToJSON <$> HS.toList as
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> HS.toList as
   typeName = typeName1
   version = noVersion
 
 instance (Hashable a, FromJSONKey a, ToJSONKey a, Eq a, SafeJSON b) => SafeJSON (HashMap a b) where
   safeFrom val = contain $
       parseJSON val >>= traverse safeFromJSON
-  safeTo as = contain . toJSON $ safeToJSON <$> as
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> as
   typeName = typeName2
   version = noVersion
 
@@ -1072,7 +1093,7 @@ instance SafeJSON a => SafeJSON (Map.KeyMap a) where
 #endif
           parseJSON val >>=
               traverse safeFromJSON
-  safeTo as = contain . toJSON $ safeToJSON <$> as
+  safeTo as = contain . SafeValue . toJSON $ safeToJSON <$> as
   typeName = typeName1
   version = noVersion
 #endif
@@ -1083,7 +1104,7 @@ instance (SafeJSON a, SafeJSON b) => SafeJSON (a, b) where
       a <- safeFromJSON a'
       b <- safeFromJSON b'
       pure (a,b)
-  safeTo (a,b) = contain $ toJSON (safeToJSON a, safeToJSON b)
+  safeTo (a,b) = contain $ SafeValue $ toJSON (safeToJSON a, safeToJSON b)
   typeName = typeName2
   version = noVersion
 
@@ -1094,7 +1115,7 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c) => SafeJSON (a, b, c) where
       b <- safeFromJSON b'
       c <- safeFromJSON c'
       pure (a,b,c)
-  safeTo (a,b,c) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c)
+  safeTo (a,b,c) = contain $ SafeValue $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c)
   typeName = typeName3
   version = noVersion
 
@@ -1106,7 +1127,7 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d) => SafeJSON (a, b, c, 
       c <- safeFromJSON c'
       d <- safeFromJSON d'
       pure (a,b,c,d)
-  safeTo (a,b,c,d) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d)
+  safeTo (a,b,c,d) = contain $ SafeValue $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d)
   typeName = typeName4
   version = noVersion
 
@@ -1119,7 +1140,7 @@ instance (SafeJSON a, SafeJSON b, SafeJSON c, SafeJSON d, SafeJSON e) => SafeJSO
       d <- safeFromJSON d'
       e <- safeFromJSON e'
       pure (a,b,c,d,e)
-  safeTo (a,b,c,d,e) = contain $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d, safeToJSON e)
+  safeTo (a,b,c,d,e) = contain $ SafeValue $ toJSON (safeToJSON a, safeToJSON b, safeToJSON c, safeToJSON d, safeToJSON e)
   typeName = typeName5
   version = noVersion
 
@@ -1131,23 +1152,23 @@ instance SafeJSON (f (g a)) => SafeJSON (Compose f g a) where
     version = noVersion
 
 -- | @since 1.1.2.0
-instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
-    safeFrom = containWithObject "Sum" $ \o -> do
-        case Map.toList o of
-            [("InL", val)] -> InL <$> safeFromJSON val
-            [("InR", val)] -> InR <$> safeFromJSON val
-            _ -> fail "Sum expects an object with one field: \"InL\" or \"InR\""
-    safeTo = contain . safeToJSON . uncurry M.singleton . \case
-        InL fa -> ("InL" :: String, safeToJSON fa)
-        InR ga -> ("InR" :: String, safeToJSON ga)
-    typeName _ = "Sum"
-    version = noVersion
+-- instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Sum f g a) where
+--     safeFrom = containWithObject "Sum" $ \o -> do
+--         case Map.toList o of
+--             [("InL", val)] -> InL <$> safeFromJSON val
+--             [("InR", val)] -> InR <$> safeFromJSON val
+--             _ -> fail "Sum expects an object with one field: \"InL\" or \"InR\""
+--     safeTo = contain . safeToJSON . uncurry M.singleton . \case
+--         InL fa -> ("InL" :: String, safeToJSON fa)
+--         InR ga -> ("InR" :: String, safeToJSON ga)
+--     typeName _ = "Sum"
+--     version = noVersion
 
 -- | @since 1.1.2.0
 instance (SafeJSON (f a), SafeJSON (g a)) => SafeJSON (Product f g a) where
     safeFrom val = contain $ do
         (f, g) <- parseJSON val
         Pair <$> safeFromJSON f <*> safeFromJSON g
-    safeTo (Pair f g) = contain $ toJSON (safeToJSON f, safeToJSON g)
+    safeTo (Pair f g) = contain $ SafeValue $ toJSON (safeToJSON f, safeToJSON g)
     typeName _ = "Product"
     version = noVersion
