@@ -1,5 +1,24 @@
 # Changelog for safe-json
 
+## 1.2.0.2
+
+* Make the test build with `quickcheck-instances-0.3.32`
+* Build with GHC 9.10.*
+* Dropped building with GHC 8.10.7
+* Bumped more dependency constraints
+* Added Changelog entry for version `1.2.0.1`
+
+## 1.2.0.1
+
+* Bumped upper dependency constraints to:
+  * `bytestring < 0.1`
+  * `containers < 0.8`
+  * `hashable < 1.6`
+  * `tasty-quickcheck < 0.12`
+  * `text < 2.2`
+  * `time < 0.15`
+* and built with GHC 9.8.*
+
 ## 1.2.0.0
 
 * Compatibility with GHC 9.6.* and `tasty < 1.6`

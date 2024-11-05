@@ -41,9 +41,11 @@ instance Arbitrary a => Arbitrary (DList a) where
   arbitrary = fromList <$> arbitrary
   shrink = fmap fromList . shrink . toList
 
+#if !MIN_VERSION_quickcheck_instances(0,3,32)
 instance (Arbitrary a, VP.Prim a) => Arbitrary (VP.Vector a) where
   arbitrary = VP.fromList <$> arbitrary
   shrink = fmap VP.fromList . shrink . VP.toList
+#endif
 
 #if MIN_VERSION_aeson(2,0,0) && !MIN_VERSION_aeson(2,0,3)
 instance Arbitrary v => Arbitrary (KM.KeyMap v) where

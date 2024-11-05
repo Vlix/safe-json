@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           safe-json
-version:        1.2.0.1
+version:        1.2.0.2
 synopsis:       Automatic JSON format versioning
 description:    This library aims to make the updating of JSON formats or contents, while keeping backward compatibility, as painless as possible. The way this is achieved is through versioning and defined migration functions to migrate older (or newer) versions to the one used.
                 .
@@ -28,7 +28,7 @@ license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 tested-with:
-    GHC == 8.10.7 , GHC == 9.0.2 , GHC == 9.2.8 , GHC == 9.4.8 , GHC == 9.6.6 , GHC == 9.8.2
+    GHC == 9.0.2 , GHC == 9.2.8 , GHC == 9.4.8 , GHC == 9.6.6 , GHC == 9.8.3 , GHC == 9.10.1
 extra-source-files:
     README.md
     ChangeLog.md
