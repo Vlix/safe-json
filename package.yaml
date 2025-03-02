@@ -52,7 +52,7 @@ description: >
 dependencies:
 - base                  >= 4.9        && < 5
 - bytestring            >= 0.10.8.1   && < 1
-- containers            >= 0.5.7.1    && < 0.8
+- containers            >= 0.5.7.1    && < 0.9
 - dlist                 >= 0.8.0.3    && < 2
 - hashable              >= 1.2.6.1    && < 1.6
 - scientific            >= 0.3.5.2    && < 0.4
