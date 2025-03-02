@@ -1,5 +1,11 @@
 # Changelog for safe-json
 
+## 1.2.1.0
+
+* Bumped upper bound of `containers` to `< 0.9`
+* Adjusted test modules to build with `text-2.1.2`
+* Dropped testing with GHC `9.0.2`
+
 ## 1.2.0.2
 
 * Make the test build with `quickcheck-instances-0.3.32`

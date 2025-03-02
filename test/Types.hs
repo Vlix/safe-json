@@ -13,7 +13,8 @@ import Data.Maybe (isJust)
 #else
 import Data.Monoid ((<>))
 #endif
-import Data.Text as T
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time (UTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Data.UUID as UUID
@@ -83,11 +84,11 @@ instance ToJSON Version1 where
 
 instance Migrate Version1 where
   type MigrateFrom Version1 = NoVersion
-  migrate (NoVersion i) = Version1 . pack . show $ i
+  migrate (NoVersion i) = Version1 . T.pack . show $ i
 
 instance Migrate (Reverse Version1) where
   type MigrateFrom (Reverse Version1) = Version2
-  migrate (Version2 ts) = Reverse . Version1 $ intercalate ", " ts
+  migrate (Version2 ts) = Reverse . Version1 $ T.intercalate ", " ts
 
 
 newtype Version2 = Version2 [Text] deriving (Eq, Show)
