@@ -4,6 +4,7 @@
 
 * Bumped upper bound of `containers` to `< 0.9`
 * Adjusted test modules to build with `text-2.1.2`
+* Dropped testing with GHC `9.0.2`
 
 ## 1.2.0.2
 

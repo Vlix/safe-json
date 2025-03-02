@@ -18,16 +18,11 @@ jobs:
           - macOS-latest
         cabal: ["latest"]
         ghc:
-          - "9.0.2"
           - "9.2.8"
           - "9.4.8"
           - "9.6.6"
-          - "9.8.2"
+          - "9.8.4"
           - "9.10.1"
-        exclude:
-          - os: "macOS-latest"
-            ghc: "9.0.2"
-
 
     steps:
     - uses: actions/checkout@v4
@@ -69,11 +64,11 @@ jobs:
       matrix:
         stack: ["latest"]
         resolver:
-          - "--resolver lts-19" # GHC 9.0.2
           - "--resolver lts-20" # GHC 9.2.8
           - "--resolver lts-21" # GHC 9.4.8
           - "--resolver lts-22" # GHC 9.6.6
-          - "--resolver nightly" # GHC 9.8.3
+          - "--resolver lts-23" # GHC 9.8.4
+          - "--resolver nightly" # GHC 9.10.1
 
     steps:
     - uses: actions/checkout@v4
