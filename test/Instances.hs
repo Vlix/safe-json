@@ -13,13 +13,30 @@ import Data.Aeson
 import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
 #endif
-import Data.DList (DList, fromList, toList)
+import Data.DList as DList (DList, fromList, toList)
 import Data.Int (Int64)
+#if MIN_VERSION_quickcheck_instances(0,4,0)
+import Data.List.NonEmpty as NonEmpty (NonEmpty, fromList, toList)
+import Data.Semigroup as Semigroup (First (..), Last (..), Max (..), Min (..))
+#endif
 import Data.Time (NominalDiffTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import qualified Data.Vector.Primitive as VP
+#if MIN_VERSION_quickcheck_instances(0,4,0)
+import Numeric.Natural (Natural)
+#endif
 
-import Test.Tasty.QuickCheck (Arbitrary(..))
+import Test.Tasty.QuickCheck (
+  Arbitrary (..),
+#if MIN_VERSION_quickcheck_instances(0,4,0)
+  Arbitrary1 (..),
+  arbitrary1,
+  arbitrarySizedNatural,
+  listOf1,
+  shrink1,
+  shrinkIntegral,
+#endif
+ )
 #if !MIN_VERSION_aeson(2,0,3)
 import Test.Tasty.QuickCheck (oneof, resize)
 import Test.QuickCheck.Arbitrary.Generic (genericShrink)
@@ -38,8 +55,8 @@ instance Arbitrary DotNetTime where
   shrink = fmap DotNetTime . shrink . fromDotNetTime
 
 instance Arbitrary a => Arbitrary (DList a) where
-  arbitrary = fromList <$> arbitrary
-  shrink = fmap fromList . shrink . toList
+  arbitrary = DList.fromList <$> arbitrary
+  shrink = fmap DList.fromList . shrink . DList.toList
 
 #if !MIN_VERSION_quickcheck_instances(0,3,32)
 instance (Arbitrary a, VP.Prim a) => Arbitrary (VP.Vector a) where
@@ -88,4 +105,34 @@ instance Ord Value where
   String{} `compare` _        = LT
   Array{}  `compare` Object{} = LT
   _        `compare` _        = GT
+#endif
+
+#if MIN_VERSION_quickcheck_instances(0,4,0)
+instance Arbitrary1 NonEmpty where
+  liftArbitrary arb = NonEmpty.fromList <$> listOf1 arb
+  liftShrink shr xs = [ NonEmpty.fromList xs' | xs' <- liftShrink shr (NonEmpty.toList xs), not (null xs') ]
+
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+  arbitrary = arbitrary1
+  shrink = shrink1
+
+instance Arbitrary a => Arbitrary (Semigroup.Min a) where
+  arbitrary = fmap Semigroup.Min arbitrary
+  shrink = map Semigroup.Min . shrink . Semigroup.getMin
+
+instance Arbitrary a => Arbitrary (Semigroup.Max a) where
+  arbitrary = fmap Semigroup.Max arbitrary
+  shrink = map Semigroup.Max . shrink . Semigroup.getMax
+
+instance Arbitrary a => Arbitrary (Semigroup.First a) where
+  arbitrary = fmap Semigroup.First arbitrary
+  shrink = map Semigroup.First . shrink . Semigroup.getFirst
+
+instance Arbitrary a => Arbitrary (Semigroup.Last a) where
+  arbitrary = fmap Semigroup.Last arbitrary
+  shrink = map Semigroup.Last . shrink . Semigroup.getLast
+
+instance Arbitrary Natural where
+  arbitrary = arbitrarySizedNatural
+  shrink    = shrinkIntegral
 #endif
