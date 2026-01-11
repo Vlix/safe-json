@@ -4,7 +4,6 @@
 {-# LANGUAGE TypeApplications #-}
 module PrimitiveTests where
 
-
 import Control.Applicative (Const)
 import Data.Aeson (DotNetTime, Value, (.:))
 import qualified Data.Aeson as A
