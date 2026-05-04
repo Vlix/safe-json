@@ -1,5 +1,19 @@
 # Changelog for safe-json
 
+## 1.2.1.2
+
+* Bumped upper bound of `time` to `< 0.17`
+* Bumped upper bound of `quickcheck-instances` in test suite to `< 0.5`
+  (again), and removed the superfluous `Arbitrary` instances.
+
+## 1.2.1.1
+
+* Bumped upper bound of `time` to `< 0.16`
+* Bumped upper bound of `quickcheck-instances` in test suite to `< 0.5`
+  (Also added `Arbitrary` instances, but apparently built the underlying
+  `QuickCheck` dependency with too low a version, because those now clash.
+  Hence why this version is DEPRECATED, please use version `1.2.1.2`)
+
 ## 1.2.1.0
 
 * Bumped upper bound of `containers` to `< 0.9`

@@ -37,18 +37,10 @@ resolver: lts-24.39
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - .
+
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps: []
-  # - directory-1.3.10.1
-  # - filepath-1.4.301.0
-  # - file-io-0.2.0
-  # - process-1.6.28.0
-  # - time-1.16
-  # - unix-2.8.8.0
-  # - hashable-1.5.0.0
-  # - tasty-1.5.1
-  # - tasty-quickcheck-0.11
 
 # allow-newer: true
 
