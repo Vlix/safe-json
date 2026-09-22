@@ -1,5 +1,9 @@
 # Changelog for safe-json
 
+## UNRELEASED
+
+* Removed unnecessary constraints
+
 ## 1.2.1.2
 
 * Bumped upper bound of `time` to `< 0.17`

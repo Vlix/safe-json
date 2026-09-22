@@ -268,7 +268,7 @@ getVersion _ = Nothing
 -- "{\"~v\":0,\"~d\":\"test\"}"
 --
 -- @since 1.0.0
-setVersion' :: forall a. SafeJSON a => Version a -> Value -> Value
+setVersion' :: forall a. Version a -> Value -> Value
 setVersion' (Version mVersion) val =
   case mVersion of
     Nothing -> val
@@ -389,14 +389,14 @@ base = Base
 
 -- | Used to define 'kind'.
 --   Extends a previous version.
-extension :: (SafeJSON a, Migrate a) => Kind a
+extension :: Migrate a => Kind a
 extension = Extends Proxy
 
 -- | Used to define 'kind'.
 --   Types that are 'extended_base', are extended by a
 --   future version and as such can migrate backward from
 --   that future version. (cf. 'extended_extension', 'base')
-extended_base :: (SafeJSON a, Migrate (Reverse a)) => Kind a
+extended_base :: Migrate (Reverse a) => Kind a
 extended_base = Extended base
 
 -- | Used to define 'kind'.
@@ -404,7 +404,7 @@ extended_base = Extended base
 --   by a future version and as such can migrate from
 --   that future version, but they also extend a previous
 --   version. (cf. 'extended_base', 'extension')
-extended_extension :: (SafeJSON a, Migrate a, Migrate (Reverse a)) => Kind a
+extended_extension :: (Migrate a, Migrate (Reverse a)) => Kind a
 extended_extension = Extended extension
 
 -- The '!' and '~' used in these set fields are chosen for their

@@ -81,7 +81,7 @@ getTest =
         , testVersion @(BareArray Int) $ Just 7
         ]
   where
-    testVersion :: forall t. (Arbitrary t, Eq t, SafeJSON t, Show t) => Maybe Int32 -> TestTree
+    testVersion :: forall t. (Arbitrary t, SafeJSON t, Show t) => Maybe Int32 -> TestTree
     testVersion expected =
         testProperty (typeName @t Proxy) $ \val ->
             expected === getVersion (safeToJSON @t val)
