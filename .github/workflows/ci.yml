@@ -14,12 +14,12 @@ jobs:
       run:
         shell: bash
     env:
-      MANUAL_RESET: "v2"
+      MANUAL_RESET: "v3"
     continue-on-error: ${{ matrix.ghc == '9.14.1' || matrix.os == 'macos-latest' }}
     strategy:
       matrix:
         os:
-          - ubuntu-latest
+          # - ubuntu-latest
           - macos-latest
         cabal: ["3.16.1.0"] # we set a concrete cabal so we can cache correctly
         ghc:
@@ -33,7 +33,11 @@ jobs:
       - name: "Add to path [MacOS]"
         id: env-vars
         run: |
-          echo "GHCUP_PATH=${HOME}/.ghcup" >> $GITHUB_ENV
+          echo "GHCUP_PATH=${HOME}/.ghcup/bin" >> $GITHUB_ENV
+
+          if [[ "${{ matrix.os }}" == 'macos-latest' ]]; then
+            echo "${HOME}/.ghcup/bin" >> $GITHUB_PATH
+          fi
 
       - name: Clone Project
         uses: actions/checkout@v6
@@ -108,12 +112,12 @@ jobs:
 
       - name: Build
         run: |
-          $HOME/.ghcup/bin/cabal build all \
+          cabal build all \
             --enable-tests --enable-benchmarks \
             --write-ghc-environment-files=always \
             --ghc-option='-Wall'
       - name: Test
-        run: $HOME/.ghcup/bin/cabal test all --enable-tests --ghc-option='-Wall'
+        run: cabal test all --enable-tests --ghc-option='-Wall'
 
   stack:
     name: stack ${{ matrix.resolver }}
