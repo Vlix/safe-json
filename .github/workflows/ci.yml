@@ -14,7 +14,7 @@ jobs:
       run:
         shell: bash
     env:
-      MANUAL_RESET: "v1"
+      MANUAL_RESET: "v2"
     continue-on-error: ${{ matrix.ghc == '9.14.1' || matrix.os == 'macos-latest' }}
     strategy:
       matrix:
@@ -48,7 +48,6 @@ jobs:
         with:
           path: |
             ${{ env.GHCUP_PATH }}/bin/*
-            ${{ env.GHCUP_PATH }}/db/*
             ${{ env.GHCUP_PATH }}/cabal/${{ matrix.cabal }}/*
             ${{ env.GHCUP_PATH }}/config.yaml
             ${{ env.GHCUP_PATH }}/ghc/${{ matrix.ghc }}/bin
@@ -109,12 +108,12 @@ jobs:
 
       - name: Build
         run: |
-          cabal build all \
+          $HOME/.ghcup/bin/cabal build all \
             --enable-tests --enable-benchmarks \
             --write-ghc-environment-files=always \
             --ghc-option='-Wall'
       - name: Test
-        run: cabal test all --enable-tests --ghc-option='-Wall'
+        run: $HOME/.ghcup/bin/cabal test all --enable-tests --ghc-option='-Wall'
 
   stack:
     name: stack ${{ matrix.resolver }}
