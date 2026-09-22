@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os:
-          # - ubuntu-latest
+          - ubuntu-latest
           - macos-latest
         cabal: ["3.16.1.0"] # we set a concrete cabal so we can cache correctly
         ghc:
@@ -33,11 +33,11 @@ jobs:
       - name: "Add to path [MacOS]"
         id: env-vars
         run: |
-          echo "GHCUP_PATH=${HOME}/.ghcup/bin" >> $GITHUB_ENV
-
           if [[ "${{ matrix.os }}" == 'macos-latest' ]]; then
             echo "${HOME}/.ghcup/bin" >> $GITHUB_PATH
           fi
+
+          echo "GHCUP_PATH=${HOME}/.ghcup" >> $GITHUB_ENV
 
       - name: Clone Project
         uses: actions/checkout@v6
