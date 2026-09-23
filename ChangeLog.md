@@ -2,7 +2,11 @@
 
 ## UNRELEASED
 
-* Removed unnecessary constraints
+* Removed unnecessary `SafeJSON a` constraints from:
+    * `setVersion'`
+    * `extension`
+    * `extended_base`
+    * `extended_extension`
 
 ## 1.2.1.2
 
